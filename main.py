@@ -1,7 +1,7 @@
 #base de dados
-from char_db import Base, Player, Personagem, Atributos, Itens, Equipamentos
 from dotenv import load_dotenv
 import os
+from char import Char
 #bot
 import logging
 import discord
@@ -22,7 +22,6 @@ intents.presences = True
 #cargos
 player = "Player"
 GM = "GM"
-
 #bot
 bot = commands.Bot(command_prefix='!',intents=intents,case_insensitive=True)#!comando -> intent
 @bot.event
@@ -58,7 +57,7 @@ async def on_message(msg):#somente 1 parametro senão nn funciona
 
 #criação de ficha(DM)
 @bot.command()
-async def ficha(ctx,*,msg):#para mandar a dm e ver o que foi mandado dps
+async def ficha(ctx):#para mandar a dm e ver o que foi mandado dps
     member = ctx.author
     cargo= discord.utils.get(ctx.guild.roles, name=player)
     #add cargo
@@ -66,6 +65,54 @@ async def ficha(ctx,*,msg):#para mandar a dm e ver o que foi mandado dps
         await member.add_roles(cargo)
     await ctx.send(f"{member.mention} criação de ficha no privado olhe sua dm")
     await member.send(f"{member.mention} iniciando criação de ficha")
+    Char.criar_char_user(member.name)
+    await criar_ficha(member)
+async def criar_ficha(member):
+    await member.send(f"""{member.mention} Para criar sua ficha vai ser passada algumas informações
+                      info basica do rpg
+                      Você tem 10 pontos de atributo para gastar
+                      vamos começar com a origem(classe principal):
+                      """)
+    #se não for restringido ok senao pula este
+    await member.send(f"""{member.mention} agr vamos para a especialização(classe secundaria):
+                      """)
+    await member.send(f"""{member.mention}
+                      Agora vamos distribuir os pontos de atributo.
+                      Digite exatamente neste formato:
+                      forca:valor, destreza:valor, constituicao:valor, inteligencia:valor, sabedoria:valor, essencia:valor, essencia_negativa:valor, stamina:valor, fama:valor
+                      Regras:
+                      - Valor mínimo: 8
+                      - Valor máximo: 25
+                      - Você tem 10 pontos para gastar
+                      - Reduzir abaixo de 10 gera pontos extras
+                      - Movimento será calculado automaticamente
+                      """)
+    await member.send("""
+                      Tabela de custo de atributos:
+                      Valor | Pontos
+                      8  -> +2  (ganha pontos)
+                      9  -> +1
+                      10 ->  0
+                      11 -> -1
+                      12 -> -2
+                      13 -> -3
+                      14 -> -4
+                      15 -> -4
+                      16 -> -6
+                      17 -> -6
+                      18 -> -8
+                      19 -> -8
+                      20 -> -10
+                      21 -> -10
+                      22 -> -10
+                      23 -> -11
+                      24 -> -11
+                      25 -> -12
+                      """)
+
+    
+    #implementar logica de criação via bot -> alterar json
+    #arquivo ficha pronta-> html/pdf da ficha
 
 #comandos GM
 @bot.command()
