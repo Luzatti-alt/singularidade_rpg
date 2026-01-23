@@ -18,8 +18,10 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.presences = True
+#cargos
+Player = "Player"
 #bot
-bot = commands.Bot(command_prefix='!',intents=intents)#!comando -> intent
+bot = commands.Bot(command_prefix='!',intents=intents,case_insensitive=True)#!comando -> intent
 @bot.event
 #sempre que for on_ready é quando esta online
 async def on_ready():
@@ -29,7 +31,9 @@ async def on_ready():
 async def on_member_join(member):
     #manda no pv deste jeito member.send()
     canal_geral = discord.utils.get(member.guild.text_channels, name="geral")
-    await canal_geral.send(f"Bem vindo {member.name} ao servidor singularidade rpg! vamos criar sua ficha digite !ficha para começar")
+    await canal_geral.send(f"""Bem vindo {member.name} ao servidor singularidade rpg!
+                           qualquer dúvida digite !comandos para a lista de comandos
+                           vamos criar sua ficha digite !ficha para começar""")
 
 @bot.event
 #moderar mensagens
@@ -46,12 +50,32 @@ async def on_message(msg):#somente 1 parametro senão nn funciona
         except:
             print("algum erro")
     await bot.process_commands(msg)#lidar com todas as outras mensagens
+@bot.command()
+async def comandos(ctx):
+    member = ctx.author
+    await ctx.send(f"""{member.mention} a lista de comandos do bot é:
+                           !ficha ajuda na criação da ficha
+                           !sair remove cargo de player(vc ainda pode participar no chat)
+                           !comandos esta mensagem
+                           """)
+        
 #comando(ctx) contexto -> !comando
 @bot.command()
 async def ficha(ctx):
     member = ctx.author
-    role= discord.utils.get(ctx.guild.roles, name="Player")
+    cargo= discord.utils.get(ctx.guild.roles, name=Player)
+    #add cargo
+    if cargo:
+        await member.add_roles(cargo)
     await ctx.send(f"{member.mention} iniciando criação de ficha")
-        
+
+@bot.command()
+async def sair(ctx):
+    member = ctx.author
+    cargo= discord.utils.get(ctx.guild.roles, name=Player)
+    #remover cargo
+    if cargo:
+        await member.remove_roles(cargo)
+    await ctx.send(f"{member.mention} saindo da campanha seu cargo não é mais {Player}")
 #rodar bot
 bot.run(token,log_handler=log,log_level=logging.DEBUG)
