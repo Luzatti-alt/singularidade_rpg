@@ -1,5 +1,5 @@
 #base de dados
-#from char_db import Base, Player, Personagem, Atributos, Itens, Equipamentos
+from char_db import Base, Player, Personagem, Atributos, Itens, Equipamentos
 from dotenv import load_dotenv
 import os
 #bot
@@ -18,9 +18,11 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.presences = True
+
 #cargos
-Player = "Player"
+player = "Player"
 GM = "GM"
+
 #bot
 bot = commands.Bot(command_prefix='!',intents=intents,case_insensitive=True)#!comando -> intent
 @bot.event
@@ -52,18 +54,39 @@ async def on_message(msg):#somente 1 parametro senão nn funciona
             print("algum erro")
     await bot.process_commands(msg)#lidar com todas as outras mensagens
         
-#comando(ctx) contexto -> !comando
+#comando(ctx) ctx=contexto -> !comando
 
 #criação de ficha(DM)
 @bot.command()
 async def ficha(ctx,*,msg):#para mandar a dm e ver o que foi mandado dps
     member = ctx.author
-    cargo= discord.utils.get(ctx.guild.roles, name=Player)
+    cargo= discord.utils.get(ctx.guild.roles, name=player)
     #add cargo
     if cargo:
         await member.add_roles(cargo)
     await ctx.send(f"{member.mention} criação de ficha no privado olhe sua dm")
     await member.send(f"{member.mention} iniciando criação de ficha")
+
+#comandos GM
+@bot.command()
+@commands.has_role(GM)
+async def dia(ctx,*,pergunta=None):#ja vai fazer a pegunta
+    embed = discord.Embed(title="Dia da sessão",description=f"Qual dia será a sessão\n\n Sábado\n Domingo\n Não posso esse fim de semana\n feriado(se tiver)",
+        )
+    votacao = await ctx.send(embed=embed)
+    await votacao.add_reaction("🔥")
+    await votacao.add_reaction("1️⃣")
+    await votacao.add_reaction("2️⃣")
+    await votacao.add_reaction("3️⃣")
+    await votacao.add_reaction("4️⃣")
+@dia.error
+async def dia_erro(ctx,error):
+    member = ctx.author
+    #se nn tiver o cargo
+    if isinstance(error,commands.MissingRole):
+        await ctx.send(f"{member.mention} não é um GM comando exclusivo para GM")
+        await ctx.add_reaction("✅")
+        await ctx.add_reaction("❌")
 
 #comandos gerais
 @bot.command()
@@ -81,42 +104,23 @@ async def poll(ctx,*,pergunta):
     await ctx.add_reaction("✅")
     await ctx.add_reaction("❌")
 
-@bot.command()
-@commands.has_role(GM)
-async def dia(ctx,*,pergunta=None):#ja vai fazer a pegunta
-    embed = discord.Embed(title="Dia da sessão",description=f"Qual dia será a sessão\n\n Sábado\n Domingo\n Não posso esse fim de semana\n feriado(se tiver)",
-        )
-    votacao = await ctx.send(embed=embed)
-    await votacao.add_reaction("🔥")
-    await votacao.add_reaction("1️⃣")
-    await votacao.add_reaction("2️⃣")
-    await votacao.add_reaction("3️⃣")
-    await votacao.add_reaction("4️⃣")
-    await votacao.add_reaction("🔥")
-@dia.error
-async def dia_erro(ctx,error):
-    member = ctx.author
-    #se nn tiver o cargo
-    if isinstance(error,commands.MissingRole):
-        await ctx.send(f"{member.mention} não é um GM comando exclusivo para GM")
-        await ctx.add_reaction("✅")
-        await ctx.add_reaction("❌")
-
 #existe comandos para roles especificas
 @bot.command()
-@commands.has_role(Player)
+@commands.has_role(player)
 async def sair(ctx):
     member = ctx.author
-    cargo= discord.utils.get(ctx.guild.roles, name=Player)
+    cargo= discord.utils.get(ctx.guild.roles, name=player)
     #remover cargo
     if cargo:
         await member.remove_roles(cargo)
-    await ctx.send(f"{member.mention} saindo da campanha seu cargo não é mais {Player}")
+    await ctx.send(f"{member.mention} saindo da campanha seu cargo não é mais {player}")
 @sair.error
 async def sair_erro(ctx,error):
     member = ctx.author
     #se nn tiver o cargo
     if isinstance(error,comandos.MissingRole):
-        await ctx.send(f"{member.mention} não é {Player} então não pode sair da campanha")
+        await ctx.send(f"{member.mention} não é {player} então não pode sair da campanha")
+
+
 #rodar bot
 bot.run(token,log_handler=log,log_level=logging.DEBUG)
