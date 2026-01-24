@@ -44,6 +44,7 @@ async def on_message(msg):#somente 1 parametro senão nn funciona
     #evitar auto reply
     if msg.author == bot.user:
         return
+    #piada
     if "não vou participar da sessão" in msg.content.lower():
         try:
             await member.send("vai sim")
@@ -68,56 +69,73 @@ async def ficha(ctx):#para mandar a dm e ver o que foi mandado dps
     Char.criar_char_user(member.name)
     await criar_ficha(member)
 async def criar_ficha(member):
-    await member.send(f"""{member.mention} Para criar sua ficha vai ser passada algumas informações
-                      info basica do rpg
-                      Você tem 10 pontos de atributo para gastar
-                      vamos começar com a origem(classe principal), ir para a especialização(classe secundaria)
-                      """)
-    #calcula 
-    await member.send(f"""{member.mention}
-                      Agora vamos distribuir os pontos de atributo.
-                      Digite exatamente neste formato:
-                      forca:valor, destreza:valor, constituicao:valor, inteligencia:valor, sabedoria:valor, essencia:valor, essencia_negativa:valor, stamina:valor, fama:valor
-                      Regras:
-                      - Valor mínimo: 8
-                      - Valor máximo: 25
-                      - Você tem 10 pontos para gastar
-                      - Reduzir abaixo de 10 gera pontos extras
-                      - Movimento será calculado automaticamente
-                      """)
-    await member.send("""
-                      Tabela de custo de atributos:
-                      Valor | Pontos
-                      8  -> +2  (ganha pontos)
-                      9  -> +1
-                      10 ->  0
-                      11 -> -1
-                      12 -> -2
-                      13 -> -3
-                      14 -> -4
-                      15 -> -4
-                      16 -> -6
-                      17 -> -6
-                      18 -> -8
-                      19 -> -8
-                      20 -> -10
-                      21 -> -10
-                      22 -> -10
-                      23 -> -11
-                      24 -> -11
-                      25 -> -12
-                      """)
+    await member.send(f"""Para criar sua ficha vai ser passada algumas informações
+info basica do rpg
+A ordem da criação é nome, origem(classe principal), especialização(classe secundaria) e distribuição de atributos
+digite !nome + para definir o nome do personagem
+digite !origem + origem para escolher a origem
+digite !especialização + origem para escolher a especialização
+se especialização for reestringido ele ja colocara automaticamente
+digite !atributo + forca:valor, destreza:valor, constituicao:valor, inteligencia:valor, sabedoria:valor, essencia:valor, essencia_negativa:valor, stamina:valor, fama:valor
+            
+Regras de pontos:
+Você tem 10 pontos de atributo para gastar livremente(15 se reestringido e não pode gastar na essencia)
+- nivel mínimo de stats: 8(se restringido essencia sera sempre 8)
+- nivel máximo de stats: 25
+- Você tem 10 pontos para gastar
+- Reduzir abaixo de 10 gera pontos extras
+- Movimento será calculado automaticamente
+- a cada lv do personagem se ganha 3 pontos """)
+    await member.send("""Tabela de custo de atributos:\nNivel de stats | Pontos\n8 -> +2  (ganha pontos)\n9  -> +1 \n10 ->  0\n11 -> -1\n12 -> -2\n13 -> -3\n14 -> -4\n15 -> -4\n16 -> -6\n17 -> -6\n18 -> -8\n19 -> -8\n20 -> -10\n21 -> -10\n22 -> -10\n23 -> -11\n24 -> -11\n25 -> -12""")
+#na dm criando ficha -> alterar json e gerar arquivo ficha pronta-> html/pdf da ficha
+@bot.command()
+@commands.dm_only()
+async def nome(ctx):
+    quem = ctx.author
+    msg = ctx.message
+    origem_escolhida = msg.content[6:]
+    Char.mudar_stats(quem,msg.content[:5],origem_escolhida)
+@nome.error
+async def erro_nome(ctx,error):
+    pass
+@bot.command()
+@commands.dm_only()
+async def origem(ctx):
+    quem = ctx.author
+    msg = ctx.message
+    origem_escolhida = msg.content[8:]
+    Char.mudar_stats(quem,msg.content[:7],origem_escolhida)
+@origem.error
+async def erro_origem(ctx,error):
+    pass
 
-    
-    #implementar logica de criação via bot -> alterar json
-    #arquivo ficha pronta-> html/pdf da ficha
+@bot.command()
+@commands.dm_only()
+async def especialização(ctx):
+    quem = ctx.author
+    msg = ctx.message
+    especialização_escolhida = msg.content[15:]
+    Char.mudar_stats(quem,msg.content[:15],especialização_escolhida)
+@especialização.error
+async def erro_especialização(ctx,error):
+    pass
+
+@bot.command()
+@commands.dm_only()
+async def atributo(ctx):
+    quem = ctx.author
+    msg = ctx.message
+    atributo_escolhido = msg.content[9:]
+    Char.mudar_stats(quem,msg.content[:9],atributo_escolhido)
+@atributo.error
+async def erro_atributo(ctx,error):
+    pass
 
 #comandos GM
 @bot.command()
 @commands.has_role(GM)
 async def dia(ctx,*,pergunta=None):#ja vai fazer a pegunta
-    embed = discord.Embed(title="Dia da sessão",description=f"Qual dia será a sessão\n\n Sábado\n Domingo\n Não posso esse fim de semana\n feriado(se tiver)",
-        )
+    embed = discord.Embed(title="Dia da sessão",description=f"Qual dia será a sessão\n\n Sábado\n Domingo\n Não posso esse fim de semana\n feriado(se tiver)")
     votacao = await ctx.send(embed=embed)
     await votacao.add_reaction("🔥")
     await votacao.add_reaction("1️⃣")
@@ -165,7 +183,6 @@ async def sair_erro(ctx,error):
     #se nn tiver o cargo
     if isinstance(error,comandos.MissingRole):
         await ctx.send(f"{member.mention} não é {player} então não pode sair da campanha")
-
 
 #rodar bot
 bot.run(token,log_handler=log,log_level=logging.DEBUG)

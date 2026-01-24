@@ -1,0 +1,1 @@
+#gerara html e css e add copia js da ficha com os dados do json

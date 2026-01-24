@@ -68,7 +68,7 @@ seria uma classe principal
 ganha uma técnica de invocações e técnica da essência(TE) no início da campanha sendo uma versão que custa menos E/EN e que é um pouco mais efetiva que a versão normal da técnica
 - restringido
 sem acesso a técnicas de essência/,técnicas reversas e invocações que precisem de essência, porém em troca ganha mais pontos de atributos(+ 10 ao criar o personagem) e o limite invés de 25 é de 40, porém começam o valor de força inicial com metade do dano normal, o ganho de dano mantém o mesmo o pontos de pressão padrão vai para entre força e defesa 5 níveis para cada pressão sempre será 0 por não ter acesso a qualquer habilidade de essência
-- hibrido
+- hirbrido
 dano recebido é menor se o inimigo for uma maldição ou se tiver maldição por pertos podem possuir características que seres humanos não tem como asas, múltiplos braços, carapaça etc
 - sem técnica
  tem mais fácil de realizar e tem um d10 a mais numa pressão, tem TE e R menor que outras classes exceto restringidos
