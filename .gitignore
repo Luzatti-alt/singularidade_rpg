@@ -1,5 +1,4 @@
 .env
-.db
 bot.log
-personagens.db
+user/
 __pycache__/

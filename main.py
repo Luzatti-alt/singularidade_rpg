@@ -71,11 +71,9 @@ async def criar_ficha(member):
     await member.send(f"""{member.mention} Para criar sua ficha vai ser passada algumas informações
                       info basica do rpg
                       Você tem 10 pontos de atributo para gastar
-                      vamos começar com a origem(classe principal):
+                      vamos começar com a origem(classe principal), ir para a especialização(classe secundaria)
                       """)
-    #se não for restringido ok senao pula este
-    await member.send(f"""{member.mention} agr vamos para a especialização(classe secundaria):
-                      """)
+    #calcula 
     await member.send(f"""{member.mention}
                       Agora vamos distribuir os pontos de atributo.
                       Digite exatamente neste formato:
@@ -151,7 +149,7 @@ async def poll(ctx,*,pergunta):
     await ctx.add_reaction("✅")
     await ctx.add_reaction("❌")
 
-#existe comandos para roles especificas
+#comandos player
 @bot.command()
 @commands.has_role(player)
 async def sair(ctx):

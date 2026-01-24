@@ -1,0 +1,1 @@
+#interações obs -> certas coisas controladas via bot
