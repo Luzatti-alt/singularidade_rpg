@@ -1,1 +1,2 @@
 use o render para isso
+python 3.9 para obs(para o bot pode ser outra versão(nn compativel com pytohn autais(obs)))
