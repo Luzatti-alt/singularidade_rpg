@@ -23,7 +23,7 @@ class Char():
             "origem": "ainda a ser definida",
             "especializacao": "ainda a ser definida",
             "atributos": {
-                #se for nçao for restirngido valor continua
+                #versão base
                 "pontos_atributo_disponivel": 10,
                 "forca": {"nivel": 10, "pontos_usados": 0},
                 "destreza": {"nivel": 10, "pontos_usados": 0},
