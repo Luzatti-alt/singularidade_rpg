@@ -87,6 +87,7 @@ Você tem 10 pontos de atributo para gastar livremente(15 se reestringido e não
 - Movimento será calculado automaticamente
 - a cada lv do personagem se ganha 3 pontos """)
     await member.send("""Tabela de custo de atributos:\nNivel de stats | Pontos\n8 -> +2  (ganha pontos)\n9  -> +1 \n10 ->  0\n11 -> -1\n12 -> -2\n13 -> -3\n14 -> -4\n15 -> -4\n16 -> -6\n17 -> -6\n18 -> -8\n19 -> -8\n20 -> -10\n21 -> -10\n22 -> -10\n23 -> -11\n24 -> -11\n25 -> -12""")
+
 #na dm criando ficha -> alterar json e gerar arquivo ficha pronta-> html/pdf da ficha
 @bot.command()
 @commands.dm_only()
@@ -150,6 +151,18 @@ async def dia_erro(ctx,error):
         await ctx.send(f"{member.mention} não é um GM comando exclusivo para GM")
         await ctx.add_reaction("✅")
         await ctx.add_reaction("❌")
+
+
+async def aviso(guild,tipo):
+    #manda no pv deste jeito member.send()
+    canal_geral = discord.utils.get(guild.text_channels, name="geral")
+    if tipo == "inicio":
+        await canal_geral.send(f"""Sessão prestes a iniciar""")
+    elif tipo == "fim":
+        await canal_geral.send(f"""Sessão finalizada""")
+    else:
+        await canal_geral.send(f"""aaaaa""")
+
 
 #comandos gerais
 @bot.command()
