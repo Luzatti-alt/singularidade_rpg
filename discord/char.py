@@ -12,6 +12,9 @@ class Char():
         pasta_user = os.path.join(Char.data_dir, user)
         if not os.path.exists(pasta_user):
             os.makedirs(pasta_user)
+        pasta_modelos = os.path.join(pasta_user, "modelos")
+        if not os.path.exists(pasta_modelos):
+            os.makedirs(pasta_modelos)
         caminho_arquivo = os.path.join(pasta_user, "char.json")
         if os.path.exists(caminho_arquivo):
             return False
