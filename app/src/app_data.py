@@ -1,0 +1,1 @@
+#funçao de gerenciamento de dados do app
