@@ -135,7 +135,7 @@ class Controller(QWidget):
         print("avisando o finalizando da sessão!")
         self.setWindowTitle("singularidade rpg controller sessão finalizada")
         #bot.aviso("fim")
-    #interação bot via app
+    #interação bot via app (sendo algo mais especifico)
     def bot_msg(self):
         u_input = self.input.text()
         print(u_input)
