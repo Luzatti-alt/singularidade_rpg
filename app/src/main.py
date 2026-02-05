@@ -1,11 +1,11 @@
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QStackedWidget,QApplication,QWidget,QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout, QHBoxLayout, QPushButton, QMainWindow
+from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
+                             QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
+                             QHBoxLayout, QPushButton, QMainWindow)#deste jeitop facilita a visualização do que sera importado
 import sys
 #from discord_bot.bot import aviso
-
 app = QApplication(sys.argv)
-
 #paleta de cor
 cores = {
     "fundo": "#060721",
@@ -15,33 +15,27 @@ cores = {
 class janela_principal(QWidget):
     def __init__(self):
         super().__init__()
-
         self.stacked = QStackedWidget()
-# 
         self.tela_controller = Controller(self.ir_anotacoes,self.ir_configs)
         self.tela_anotacoes = anotacoes(self.voltar)
         self.tela_configs = configs(self.voltar)
-
         self.stacked.addWidget(self.tela_controller)
         self.stacked.addWidget(self.tela_anotacoes)
         self.stacked.addWidget(self.tela_configs)
-
+        self.setWindowTitle("singularidade rpg controller sessão inativa")
         layout = QVBoxLayout()
         layout.addWidget(self.stacked)
         self.setLayout(layout)
-
+    #ir para outras telas
     def ir_anotacoes(self):
         self.stacked.setCurrentWidget(self.tela_anotacoes)
     def ir_configs(self):
         self.stacked.setCurrentWidget(self.tela_configs)
-
     def voltar(self):
         self.stacked.setCurrentWidget(self.tela_controller)
 
-
 #telas
 class Controller(QWidget):
-    #telas
     def __init__(self, ir_anotacoes,ir_configs):
         super().__init__()
         self.ir_anotacoes = ir_anotacoes
@@ -57,7 +51,6 @@ class Controller(QWidget):
         palette.setColor(QPalette.ColorRole.ButtonText, QColor(cores["texto"]))
         palette.setColor(QPalette.ColorRole.WindowText, QColor(cores["texto"]))
         palette.setColor(QPalette.ColorRole.Text, QColor(cores["texto"]))
-
         app.setPalette(palette)
         #stylesheet glonal aos que nn funcionaram
         app.setStyleSheet(f"""
@@ -76,7 +69,6 @@ class Controller(QWidget):
                           """)
 
         #menus
-        
         #topo
         alertar_inicio_fim = QPushButton("Iniciar sessão")
         alertar_inicio_fim.setCheckable(True)
@@ -88,8 +80,6 @@ class Controller(QWidget):
         menu_topo.addWidget(confs)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
-        #anotacoes.clicked.connect(self.menu_confs)
-        
         #controle geral
         lista_efeitos_sonoros = QComboBox()
         lista_efeitos_sonoros.setStyleSheet(f"background-color:{cores['botao']};")
@@ -108,7 +98,6 @@ class Controller(QWidget):
         lista_efeitos_cam.addItem("placehoarder 3")
         controle_cam_button = QPushButton("aplicar efeito na camera")
         controle_cam_button.setCheckable(True)
-        
         controle_cam.addWidget(lista_efeitos_sonoros, 1, 1)
         controle_cam.addWidget(controle_som, 2, 1)
         controle_cam.addWidget(lista_efeitos_cam, 3, 1)
@@ -124,7 +113,6 @@ class Controller(QWidget):
         mandar_msg_bot.clicked.connect(self.bot_msg)#enviar via botão
         self.input.returnPressed.connect(self.bot_msg)#enviar via enter
 
-        #o layout linha e coluna
         layout_base.addLayout(menu_topo, 1, 1)
         layout_base.addLayout(controle_cam, 2, 3)
         layout_base.addLayout(user_input_baixo, 3, 1)
@@ -155,25 +143,56 @@ class anotacoes(QWidget):
     def __init__(self, voltar):
         super().__init__()
         self.voltar = voltar
-        layout = QVBoxLayout()
-
-        layout.addWidget(QLabel("Anotações"))
-        btn = QPushButton("Voltar")
-        btn.clicked.connect(voltar)
-        layout.addWidget(btn)
-        self.setLayout(layout)
+        layout_base = QGridLayout()
+        anotacao = QHBoxLayout()
+        controles_anotacoes = QVBoxLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+        #controles anotações
+        nv_pasta = QPushButton("nova pasta")
+        apagar_anotacoes = QPushButton("apagar anotacoes")
+        controles_anotacoes.addWidget(nv_pasta)
+        controles_anotacoes.addWidget(apagar_anotacoes)
+        anotacao.addLayout(controles_anotacoes)
+        #anotação
+        anotacao_input = QTextEdit()
+        anotacao_input.setStyleSheet(f"color:black;")
+        anotacao_input.setMinimumSize(500,100)
+        anotacao_input.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+            )#so funciona aceitando 2 parametros
+        anotacao.addWidget(anotacao_input)
+        #resto do menu
+        salvar_button = QPushButton("salvar")
+        menu_fundo.addWidget(salvar_button)
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(anotacao,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
 
 class configs(QWidget):
     def __init__(self, voltar):
         super().__init__()
         self.voltar = voltar
-        layout = QVBoxLayout()
+        layout_base = QGridLayout()
+        configs_infos = QGridLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
 
-        layout.addWidget(QLabel("configurações"))
-        btn = QPushButton("Voltar")
-        btn.clicked.connect(voltar)
-        layout.addWidget(btn)
-        self.setLayout(layout)
+        configs_infos.addWidget(QLabel("configurações"))
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        apagar_dados = QPushButton("excluir dados salvos")
+        menu_fundo.addWidget(apagar_dados)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(configs_infos,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
 #loop do app/janela
 window = janela_principal()
 window.show()
