@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor, QPalette, QIcon
 from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
                              QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
                              QHBoxLayout, QPushButton, QMainWindow)#deste jeitop facilita a visualização do que sera importado
@@ -22,6 +22,7 @@ class janela_principal(QWidget):
         self.stacked.addWidget(self.tela_controller)
         self.stacked.addWidget(self.tela_anotacoes)
         self.stacked.addWidget(self.tela_configs)
+        self.setWindowIcon(QIcon("app/src/ui/imgs/dado-20-lados.png"))
         self.setWindowTitle("singularidade rpg controller sessão inativa")
         layout = QVBoxLayout()
         layout.addWidget(self.stacked)
@@ -54,20 +55,11 @@ class Controller(QWidget):
         app.setPalette(palette)
         #stylesheet glonal aos que nn funcionaram
         app.setStyleSheet(f"""
-        QPushButton {{
-            background-color: {cores['botao']};
-        }}
-        QPushButton:hover {{
-            background-color: #0a1370;
-        }}
-        QPushButton:pressed {{
-            background-color: #020426;
-        }}
-        QPushButton:checked {{
-            background-color: #1a3dff;
-        }}
-                          """)
-
+        QPushButton {{background-color: {cores['botao']};}}
+        QPushButton:hover {{background-color: #0a1370;}}
+        QPushButton:pressed {{background-color: #020426;}}
+        QPushButton:checked {{background-color: #1a3dff;}}
+        """)
         #menus
         #topo
         alertar_inicio_fim = QPushButton("Iniciar sessão")
@@ -75,12 +67,16 @@ class Controller(QWidget):
         alertar_inicio_fim.clicked.connect(self.sessao)
         anotacoes = QPushButton("Anotações")
         confs = QPushButton("Configurações")
+        sair_sala = QPushButton("Sair da sala")
         menu_topo.addWidget(alertar_inicio_fim)
         menu_topo.addWidget(anotacoes)
         menu_topo.addWidget(confs)
+        menu_topo.addWidget(sair_sala)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
+
         #controle geral
+        add_efeitos_sonoros = QPushButton("adicionar efeitos sonoros")
         lista_efeitos_sonoros = QComboBox()
         lista_efeitos_sonoros.setStyleSheet(f"background-color:{cores['botao']};")
         lista_efeitos_sonoros.addItem("sem efeito sonoro")
@@ -88,7 +84,7 @@ class Controller(QWidget):
         lista_efeitos_sonoros.addItem("placehoarder 2")
         lista_efeitos_sonoros.addItem("placehoarder 3")
         controle_som = QPushButton("aplicar efeito sonoro")
-
+        add_efeitos_cam = QPushButton("adicionar efeitos de camera")
         lista_efeitos_cam = QComboBox()
         lista_efeitos_cam.setStyleSheet(f"background-color:{cores['botao']};")
         #criar arquivo de efeitos de camera e carregar + efeitos padrão 
@@ -98,10 +94,12 @@ class Controller(QWidget):
         lista_efeitos_cam.addItem("placehoarder 3")
         controle_cam_button = QPushButton("aplicar efeito na camera")
         controle_cam_button.setCheckable(True)
-        controle_cam.addWidget(lista_efeitos_sonoros, 1, 1)
-        controle_cam.addWidget(controle_som, 2, 1)
-        controle_cam.addWidget(lista_efeitos_cam, 3, 1)
-        controle_cam.addWidget(controle_cam_button, 4, 1)
+        controle_cam.addWidget(add_efeitos_sonoros, 1, 1)
+        controle_cam.addWidget(lista_efeitos_sonoros, 2, 1)
+        controle_cam.addWidget(controle_som, 3, 1)
+        controle_cam.addWidget(add_efeitos_cam, 4, 1)
+        controle_cam.addWidget(lista_efeitos_cam, 5, 1)
+        controle_cam.addWidget(controle_cam_button, 6, 1)
         
         #baixo
         #adicionar/mandar aviso especifico
