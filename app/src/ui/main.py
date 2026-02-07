@@ -45,9 +45,14 @@ class Controller(QWidget):
         self.setAutoFillBackground(True)
         layout_base = QGridLayout()
         menu_topo = QHBoxLayout()
-        controle_cam = QGridLayout()
+        controle = QGridLayout()
         tresD_render = QHBoxLayout()
         tresD_render.addWidget(OpenGLWidget())
+        meio_tela = QHBoxLayout()
+        meio_tela.addLayout(tresD_render)
+        meio_tela.addLayout(controle)
+        meio_tela.setStretch(0, 8)  # tresD_render
+        meio_tela.setStretch(1, 2)  # controle
         user_input_baixo = QHBoxLayout()
         #cores
         palette = QPalette()
@@ -97,12 +102,12 @@ class Controller(QWidget):
         lista_efeitos_cam.addItem("placehoarder 3")
         controle_cam_button = QPushButton("aplicar efeito na camera")
         controle_cam_button.setCheckable(True)
-        controle_cam.addWidget(add_efeitos_sonoros, 1, 1)
-        controle_cam.addWidget(lista_efeitos_sonoros, 2, 1)
-        controle_cam.addWidget(controle_som, 3, 1)
-        controle_cam.addWidget(add_efeitos_cam, 4, 1)
-        controle_cam.addWidget(lista_efeitos_cam, 5, 1)
-        controle_cam.addWidget(controle_cam_button, 6, 1)
+        controle.addWidget(add_efeitos_sonoros, 1, 1)
+        controle.addWidget(lista_efeitos_sonoros, 2, 1)
+        controle.addWidget(controle_som, 3, 1)
+        controle.addWidget(add_efeitos_cam, 4, 1)
+        controle.addWidget(lista_efeitos_cam, 5, 1)
+        controle.addWidget(controle_cam_button, 6, 1)
         
         #baixo
         #adicionar/mandar aviso especifico
@@ -115,8 +120,7 @@ class Controller(QWidget):
         self.input.returnPressed.connect(self.bot_msg)#enviar via enter
 
         layout_base.addLayout(menu_topo, 1, 1)
-        layout_base.addLayout(tresD_render, 2, 1)
-        layout_base.addLayout(controle_cam, 2, 3)
+        layout_base.addLayout(meio_tela, 2, 1)
         layout_base.addLayout(user_input_baixo, 3, 1)
         user_input_baixo.addWidget(self.input_bot)
         user_input_baixo.addWidget(self.input)
