@@ -3,6 +3,7 @@ from PyQt6.QtGui import QColor, QPalette, QIcon
 from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
                              QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
                              QHBoxLayout, QPushButton, QMainWindow)#deste jeitop facilita a visualização do que sera importado
+from opengl_widget import OpenGLWidget
 import sys
 #from discord_bot.bot import aviso
 app = QApplication(sys.argv)
@@ -45,6 +46,8 @@ class Controller(QWidget):
         layout_base = QGridLayout()
         menu_topo = QHBoxLayout()
         controle_cam = QGridLayout()
+        tresD_render = QHBoxLayout()
+        tresD_render.addWidget(OpenGLWidget())
         user_input_baixo = QHBoxLayout()
         #cores
         palette = QPalette()
@@ -112,6 +115,7 @@ class Controller(QWidget):
         self.input.returnPressed.connect(self.bot_msg)#enviar via enter
 
         layout_base.addLayout(menu_topo, 1, 1)
+        layout_base.addLayout(tresD_render, 2, 1)
         layout_base.addLayout(controle_cam, 2, 3)
         layout_base.addLayout(user_input_baixo, 3, 1)
         user_input_baixo.addWidget(self.input_bot)
