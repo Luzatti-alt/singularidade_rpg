@@ -1,5 +1,6 @@
 #region libs
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from PyQt6.QtGui import QImage
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram,compileShader
 #program representa o shader e o shader um modulo
@@ -10,10 +11,11 @@ import numpy as np
 #endregion
 
 data_type_color_vertex = np.dtype({
-    'names':['x','y','z','color'],
-    'formats':[np.float32, np.float32, np.float32, np.uint32],
-    'offsets':[0,4,8,12],
-    'itemsize':16})
+    #u v são para texturas
+    'names':['x','y','z','color','u','v'],
+    'formats':[np.float32, np.float32, np.float32, np.uint32, np.float32, np.float32],
+    'offsets':[0,4,8,12,16,20],
+    'itemsize':24})
 #region shaders
 #graphic pipeline(vertex -> rasterizer(converter formas geométricas (primitivas) e criando shader na gpu
 def make_shader(arquivo_vertex:str,arquivo_frag:str) -> int:
@@ -29,8 +31,50 @@ def make_shader_module(arquivo:str,module_type):
 
 #outras configurações
 fps = 60 #fps(dps vou add fps cap nas confs)
+#region texturas
+class Material():
+    def __init__(self):
+        self.textura = glGenTextures(1)#1 textura
+    def carregar_textura(self, arquivo: str) -> None:
+        img = QImage(arquivo)
+        if img.isNull():
+            raise Exception(f"Erro ao carregar a textura: {arquivo}")
 
-#region vertec buffer
+        # converte para RGBA
+        img = img.convertToFormat(QImage.Format.Format_RGBA8888)
+        width = img.width()
+        height = img.height()
+
+        # Pega dados e cria numpy array
+        ptr = img.bits()
+        ptr.setsize(img.sizeInBytes())
+        data = np.array(ptr, dtype=np.uint8).reshape(height, width, 4)
+
+        # inverte verticalmente (OpenGL espera topo primeiro)
+        data = np.flip(data, axis   =0)
+
+    # Bind textura
+        glBindTexture(GL_TEXTURE_2D, self.textura)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+        # envia dados para GPU
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, data)
+        glGenerateMipmap(GL_TEXTURE_2D)
+        return self
+
+
+    def use(self)->None:
+        glBindTexture(GL_TEXTURE_2D,self.textura)
+    def destroy(self)->None:
+        glDeleteTextures(1,(self.textura,))
+
+#endregion
+
+#region vertex buffe(agr é index buffer)
 class Mesh():
     def __init__(self):
         self.VAO = glGenVertexArrays(1)
@@ -55,21 +99,31 @@ class Mesh():
         vertices[0]['y'] = -0.75
         vertices[0]['z'] = 0.0
         vertices[0]['color'] = 0
+        #cordenadas de texturas sao definidas por u(x) v(y) lembrando que coordenadas no opengl
+        #vao de 0 a 1 / -1 a 1
+        vertices[0]['u'] = 0.0
+        vertices[0]['v'] = 0.0
 
         vertices[1]['x'] = 0.75
         vertices[1]['y'] = -0.75
         vertices[1]['z'] = 0.0
         vertices[1]['color'] = 1
+        vertices[1]['u'] = 1.0
+        vertices[1]['v'] = 0.0
 
         vertices[2]['x'] = 0.75
         vertices[2]['y'] = 0.75
         vertices[2]['z'] = 0.0
         vertices[2]['color'] = 2
+        vertices[2]['u'] = 1.0
+        vertices[2]['v'] = 1.0
 
         vertices[3]['x'] = -0.75
         vertices[3]['y'] = 0.75
         vertices[3]['z'] = 0.0
-        vertices[3]['color'] = 2
+        vertices[3]['color'] = 1
+        vertices[3]['u'] = 0.0
+        vertices[3]['v'] = 1.0
         #bind VAO
         glBindVertexArray(self.VAO)
         glBindBuffer(GL_ARRAY_BUFFER,self.VBO)#vertex data para desenhar(array buffer)
@@ -81,11 +135,18 @@ class Mesh():
         glVertexAttribPointer(attr_index,size,GL_FLOAT,GL_FALSE,stride,ctypes.c_void_p(offset))
         glEnableVertexAttribArray(attr_index)
 
-        attr_index += 1
-        size -= 2 #trocar a cor
-        offset += 12
+        attr_index = 1
+        size = 2 #trocar a cor
+        offset = 12
         #diff por conta de um I (de integer)
         glVertexAttribIPointer(attr_index,size,GL_UNSIGNED_INT,stride,ctypes.c_void_p(offset))
+        glEnableVertexAttribArray(attr_index)
+
+        attr_index += 1
+        size = 2 #trocar a cor
+        offset = 16 
+        #diff por conta de um I (de integer)
+        glVertexAttribPointer(attr_index,size,GL_FLOAT,GL_FALSE,stride,ctypes.c_void_p(offset))
         glEnableVertexAttribArray(attr_index)
         #mandar para gpu
         #target, num bytes, data enviada, modo de uso(é mandado para vbo)
@@ -104,7 +165,8 @@ class Mesh():
         glDrawElements(GL_TRIANGLES,self.index_count,GL_UNSIGNED_BYTE,ctypes.c_void_p(0))
         #bind
     def destroy(self)->None:
-        glDeleteVertexArrays(1,(self.VAO,))#num de vertex array deletados, colecao de dados
+        glDeleteVertexArrays(2,(self.VAO,))#num de vertex array deletados, colecao de dados 
+        #lembre que vbo e ebo juntos entao precisamos deletar os dois
         glDeleteBuffers(1,(self.VBO,self.EBO))
 #endregion
 #region widget
@@ -116,12 +178,13 @@ class OpenGLWidget(QOpenGLWidget):
         #criar vertex layout
         #vertex layout(describes to the graphics pipeline how to interpret the raw data stored in a Vertex Buffer Object (VBO) on the GPU)
         self.VAO = glGenVertexArrays(1)
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         glBindVertexArray(self.VAO)
         self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
+        self.textura = Material().carregar_textura(BASE_DIR+"\\imgs\\dado-20-lados.png")
         #achando arquivos necessarios para o shader
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        vertex_path = os.path.join(BASE_DIR, "vertex.txt")
-        fragment_path = os.path.join(BASE_DIR, "fragment.txt")
+        vertex_path = os.path.join(BASE_DIR+"\\shader\\", "vertex.txt")
+        fragment_path = os.path.join(BASE_DIR+"\\shader\\", "fragment.txt")
         #garantiu que ache os arquivos
         self.shader = make_shader(vertex_path,fragment_path)
 
@@ -136,13 +199,16 @@ class OpenGLWidget(QOpenGLWidget):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         #configurando
         glUseProgram(self.shader)#usar programa shader
+        tex_loc = glGetUniformLocation(self.shader, "tex")
+        glUniform1i(tex_loc, 0)
+        self.textura.use()
         self.mesh.draw()
 
     #limpar recursos de gpu
     def cleanup(self):
         self.makeCurrent()   # ativa contexto
-        glDeleteProgram(self.shader)
         glDeleteProgram(self.shader)#chamar qnd fechar aplicacao (optimizar e jeito correto de liberar espaço)
         glDeleteVertexArrays(1, [self.VAO])
         self.doneCurrent()
         self.mesh.destroy()
+        self.textura.destroy()
