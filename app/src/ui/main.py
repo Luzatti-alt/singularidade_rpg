@@ -1,10 +1,11 @@
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QPalette, QIcon
+from PyQt6.QtGui import QColor, QPalette, QIcon,QSurfaceFormat
 from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
                              QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
                              QHBoxLayout, QPushButton, QMainWindow)#deste jeitop facilita a visualização do que sera importado
 from opengl_widget import OpenGLWidget
 import sys
+
 #from discord_bot.bot import aviso
 app = QApplication(sys.argv)
 #paleta de cor
@@ -43,11 +44,15 @@ class Controller(QWidget):
         self.ir_anotacoes = ir_anotacoes
         self.ir_configs = ir_configs
         self.setAutoFillBackground(True)
-        layout_base = QGridLayout()
+        layout_base = QVBoxLayout()
         menu_topo = QHBoxLayout()
         controle = QGridLayout()
         tresD_render = QHBoxLayout()
-        tresD_render.addWidget(OpenGLWidget())
+        open_gl = OpenGLWidget()
+        open_gl.setSizePolicy(QSizePolicy.Policy.Expanding,
+                  QSizePolicy.Policy.Expanding)
+        tresD_render.addWidget(open_gl)
+
         meio_tela = QHBoxLayout()
         meio_tela.addLayout(tresD_render)
         meio_tela.addLayout(controle)
@@ -74,11 +79,15 @@ class Controller(QWidget):
         alertar_inicio_fim.setCheckable(True)
         alertar_inicio_fim.clicked.connect(self.sessao)
         anotacoes = QPushButton("Anotações")
+        mapas = QPushButton("Mapas")
         confs = QPushButton("Configurações")
+        sala_id_text = QLabel("ID sala:")
         sair_sala = QPushButton("Sair da sala")
         menu_topo.addWidget(alertar_inicio_fim)
         menu_topo.addWidget(anotacoes)
+        menu_topo.addWidget(mapas)
         menu_topo.addWidget(confs)
+        menu_topo.addWidget(sala_id_text)
         menu_topo.addWidget(sair_sala)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
@@ -102,12 +111,24 @@ class Controller(QWidget):
         lista_efeitos_cam.addItem("placehoarder 3")
         controle_cam_button = QPushButton("aplicar efeito na camera")
         controle_cam_button.setCheckable(True)
+
+        lista_mapa = QComboBox()
+        lista_mapa.setStyleSheet(f"background-color:{cores['botao']};")
+        lista_mapa.addItem("nenhum mapa")
+        lista_mapa.addItem("placehoarder 1")
+        lista_mapa.addItem("placehoarder 2")
+        lista_mapa.addItem("placehoarder 3")
+        controle_mapa_button = QPushButton("trocar mapa")
+        controle_mapa_button.setCheckable(True)
+        #adicionando no layout
         controle.addWidget(add_efeitos_sonoros, 1, 1)
         controle.addWidget(lista_efeitos_sonoros, 2, 1)
         controle.addWidget(controle_som, 3, 1)
         controle.addWidget(add_efeitos_cam, 4, 1)
         controle.addWidget(lista_efeitos_cam, 5, 1)
         controle.addWidget(controle_cam_button, 6, 1)
+        controle.addWidget(lista_mapa, 7, 1)
+        controle.addWidget(controle_mapa_button, 8, 1)
         
         #baixo
         #adicionar/mandar aviso especifico
@@ -119,9 +140,12 @@ class Controller(QWidget):
         mandar_msg_bot.clicked.connect(self.bot_msg)#enviar via botão
         self.input.returnPressed.connect(self.bot_msg)#enviar via enter
 
-        layout_base.addLayout(menu_topo, 1, 1)
-        layout_base.addLayout(meio_tela, 2, 1)
-        layout_base.addLayout(user_input_baixo, 3, 1)
+        layout_base.addLayout(menu_topo)
+        layout_base.addLayout(meio_tela)
+        layout_base.addLayout(user_input_baixo)
+        layout_base.setStretch(0, 1)
+        layout_base.setStretch(1, 8)
+        layout_base.setStretch(2, 1)
         user_input_baixo.addWidget(self.input_bot)
         user_input_baixo.addWidget(self.input)
         user_input_baixo.addWidget(mandar_msg_bot)
