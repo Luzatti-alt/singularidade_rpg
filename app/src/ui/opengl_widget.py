@@ -29,16 +29,27 @@ def make_shader_module(arquivo:str,module_type):
 
 #outras configurações
 fps = 60 #fps(dps vou add fps cap nas confs)
+
+#region vertec buffer
 class Mesh():
     def __init__(self):
         self.VAO = glGenVertexArrays(1)
-        self.VBO = glGenBuffers(1)#guarda os dados do vertex
-        self.vertex_count = 0
+        #EBO element buffer object, guarda indices de vertices que referencia vertices do VBO
+        self.VBO, self.EBO = glGenBuffers(2)#guarda os dados do vertex/numeros de buffers
+        #troquei de 1 para 2 para criar o EBO junto de VBO
+        '''vertex counter vs index counter
+        Vertex Buffer (Vertex Count): 
+        Contains the actual data for each point in 3D space (position, normal, texture coordinates).
+        Index Buffer (Index): 
+        Contains integers that act as pointers to the vertex buffer, telling the GPU which vertices to connect to form triangles. 
+        '''
+        #troquei vertex_count para index_count
+        self.index_count = 0
     #evitar erro com float32
     #com isso nn precisamos de hard coded em vertex.txt
-    def build_color_triangue(self)->"Mesh":
+    def build_color_forma(self)->"Mesh":
         #preenche com uma lista com 3 zeros para o tipo de dado isso com defaults sensiveis
-        vertices = np.zeros(3,dtype=data_type_color_vertex)
+        vertices = np.zeros(4,dtype=data_type_color_vertex)#cada vertice(comecando por 1 -> n, nn de 0 -> n-1),dtype
         #definimos valores nele(no tutorial esta deste jeito)
         vertices[0]['x'] = -0.75
         vertices[0]['y'] = -0.75
@@ -50,10 +61,15 @@ class Mesh():
         vertices[1]['z'] = 0.0
         vertices[1]['color'] = 1
 
-        vertices[2]['x'] = 0.35
+        vertices[2]['x'] = 0.75
         vertices[2]['y'] = 0.75
         vertices[2]['z'] = 0.0
         vertices[2]['color'] = 2
+
+        vertices[3]['x'] = -0.75
+        vertices[3]['y'] = 0.75
+        vertices[3]['z'] = 0.0
+        vertices[3]['color'] = 2
         #bind VAO
         glBindVertexArray(self.VAO)
         glBindBuffer(GL_ARRAY_BUFFER,self.VBO)#vertex data para desenhar(array buffer)
@@ -77,25 +93,31 @@ class Mesh():
         glBufferData(GL_ARRAY_BUFFER,vertices.nbytes,vertices,GL_STATIC_DRAW)#nn indica que vai desenhar
         
         #mais sim que os dados vao ser usados para desenhar
-        self.vertex_count = 3
+        self.index_count = 6
+        indices = np.array([0,1,2,2,3,0],dtype=np.ubyte)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,self.EBO)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER,indices.nbytes,indices,GL_STATIC_DRAW)
         #mesh configurada
         return self
     def draw(self) -> None:
         glBindVertexArray(self.VAO)#binda VAO com dados de vertex
-        glDrawArrays(GL_TRIANGLES,0,self.vertex_count)
+        glDrawElements(GL_TRIANGLES,self.index_count,GL_UNSIGNED_BYTE,ctypes.c_void_p(0))
+        #bind
     def destroy(self)->None:
         glDeleteVertexArrays(1,(self.VAO,))#num de vertex array deletados, colecao de dados
-        glDeleteBuffers(1,(self.VBO,))
+        glDeleteBuffers(1,(self.VBO,self.EBO))
+#endregion
+#region widget
 class OpenGLWidget(QOpenGLWidget):
     #contexto open gl(initializeGL,paintGL)
     def initializeGL(self):
         cor_tela_opgl = (0.1, 0.1, 0.2, 1)
         glClearColor(cor_tela_opgl[0],cor_tela_opgl[1],cor_tela_opgl[2],cor_tela_opgl[3])
-        #criar vertex layout(seguindo tutorial(MESMO sendo algo para mac(evitar erros seguindo o tutorial)))
+        #criar vertex layout
         #vertex layout(describes to the graphics pipeline how to interpret the raw data stored in a Vertex Buffer Object (VBO) on the GPU)
         self.VAO = glGenVertexArrays(1)
         glBindVertexArray(self.VAO)
-        self.mesh = Mesh().build_color_triangue() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
+        self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
         #achando arquivos necessarios para o shader
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         vertex_path = os.path.join(BASE_DIR, "vertex.txt")
