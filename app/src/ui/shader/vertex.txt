@@ -14,10 +14,11 @@ layout (location=2) in vec2 tex_coord;
 //output de vetor
 out vec3 fragmentColor;
 out vec2 fragment_tex_coord;
+uniform mat4 transform;
 
 void main(){
     //programa realizando o shader qnd convocado
-    gl_Position = vec4(vertex_position,1.0);
+    gl_Position = transform * vec4(vertex_position,1.0);
     fragmentColor = colors[color_index];
     fragment_tex_coord = tex_coord;
 }

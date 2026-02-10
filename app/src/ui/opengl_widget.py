@@ -1,6 +1,7 @@
 #region libs
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtGui import QImage
+from PyQt6.QtCore import QTimer
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram,compileShader
 #program representa o shader e o shader um modulo
@@ -39,17 +40,14 @@ class Material():
         img = QImage(arquivo)
         if img.isNull():
             raise Exception(f"Erro ao carregar a textura: {arquivo}")
-
         # converte para RGBA
         img = img.convertToFormat(QImage.Format.Format_RGBA8888)
         width = img.width()
         height = img.height()
-
         # Pega dados e cria numpy array
         ptr = img.bits()
         ptr.setsize(img.sizeInBytes())
         data = np.array(ptr, dtype=np.uint8).reshape(height, width, 4)
-
         # inverte verticalmente (OpenGL espera topo primeiro)
         data = np.flip(data, axis   =0)
 
@@ -71,8 +69,33 @@ class Material():
         glBindTexture(GL_TEXTURE_2D,self.textura)
     def destroy(self)->None:
         glDeleteTextures(1,(self.textura,))
-
 #endregion
+
+#region matriz
+class Mat4():
+    #4x4
+    def __init__(self):
+        self.dados = np.zeros((4,4),dtype=np.float32)
+        for i in range(4):
+            self.dados[i][i] = 1.0
+    def translation(self,x:float,y:float,z:float)->"Mat4":
+        self.dados[0,3] = x
+        self.dados[1,3] = y
+        self.dados[2,3] = z
+        return self
+#exemplo
+class Moving_quad():
+    def __init__(self):
+        self.t = 0.0
+        self.x_offset = 0.0
+    def upt(self,dt:float)->None:
+        self.t += 0.001 * dt
+        if self.t> 360:
+            self.t -= 360
+        self.x_offset = np.sin(20* np.radians(self.t))
+    def get_transform(self)-> np.array:
+        return Mat4().translation(self.x_offset,0,0).dados
+#endregion matriz
 
 #region vertex buffe(agr é index buffer)
 class Mesh():
@@ -177,17 +200,22 @@ class OpenGLWidget(QOpenGLWidget):
         glClearColor(cor_tela_opgl[0],cor_tela_opgl[1],cor_tela_opgl[2],cor_tela_opgl[3])
         #criar vertex layout
         #vertex layout(describes to the graphics pipeline how to interpret the raw data stored in a Vertex Buffer Object (VBO) on the GPU)
-        self.VAO = glGenVertexArrays(1)
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        glBindVertexArray(self.VAO)
         self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
         self.textura = Material().carregar_textura(BASE_DIR+"\\imgs\\dado-20-lados.png")
+        self.quad = Moving_quad()
         #achando arquivos necessarios para o shader
         vertex_path = os.path.join(BASE_DIR+"\\shader\\", "vertex.txt")
         fragment_path = os.path.join(BASE_DIR+"\\shader\\", "fragment.txt")
         #garantiu que ache os arquivos
         self.shader = make_shader(vertex_path,fragment_path)
-
+        #framerate
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.animate)
+        self.timer.start(16)  # ~60 FPS (1000ms / 60 ≈ 16ms)
+    def animate(self):
+        self.quad.upt(1.0)  # atualiza a posição
+        self.update()  # força o paintGL() a ser chamado novamente
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
         glMatrixMode(GL_PROJECTION)
@@ -202,6 +230,8 @@ class OpenGLWidget(QOpenGLWidget):
         tex_loc = glGetUniformLocation(self.shader, "tex")
         glUniform1i(tex_loc, 0)
         self.textura.use()
+        location = glGetUniformLocation(self.shader,"transform")
+        glUniformMatrix4fv(location,1,GL_FALSE,self.quad.get_transform())
         self.mesh.draw()
 
     #limpar recursos de gpu
