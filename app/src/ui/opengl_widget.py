@@ -9,12 +9,14 @@ from OpenGL.GLU import *
 import sys
 import os
 import numpy as np
+import ctypes
+
 #endregion
 
 data_type_color_vertex = np.dtype({
     #u v são para texturas
     'names':['x','y','z','color','u','v'],
-    'formats':[np.float32, np.float32, np.float32, np.uint32, np.float32, np.float32],
+    'formats':[np.float32, np.float32, np.float32, np.int32, np.float32, np.float32],
     'offsets':[0,4,8,12,16,20],
     'itemsize':24})
 #region shaders
@@ -28,6 +30,22 @@ def make_shader_module(arquivo:str,module_type):
     with open(arquivo,'r', encoding="utf-8") as file:
         src_code = file.readlines()#pega o codigo do shader do txt e mandando para a gpu
         return compileShader(src_code,module_type)#compila para gpu
+class Shader:
+    def __init__(self, vertex_path, fragment_path):
+        self.program = make_shader(vertex_path, fragment_path)
+        self.location: dict[str,int] = {}
+
+    def use(self):
+        glUseProgram(self.program)
+    def upload_mat4(self,name:str,matrix:"Mat4")->None:
+        if name not in self.location:
+            self.location[name] = glGetUniformLocation(self.program, name)
+        glUniformMatrix4fv(self.location[name], 1, GL_TRUE, matrix.dados)
+
+
+    def destroy(self):
+        glDeleteProgram(self.program)
+
 #endregion
 
 #outras configurações
@@ -35,8 +53,11 @@ fps = 60 #fps(dps vou add fps cap nas confs)
 #region texturas
 class Material():
     def __init__(self):
-        self.textura = glGenTextures(1)#1 textura
+        self.textura = None
+
+        #self.textura = glGenTextures(1)#1 textura
     def carregar_textura(self, arquivo: str) -> None:
+        self.textura = glGenTextures(1)
         img = QImage(arquivo)
         if img.isNull():
             raise Exception(f"Erro ao carregar a textura: {arquivo}")
@@ -57,6 +78,8 @@ class Material():
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+
 
         # envia dados para GPU
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
@@ -92,15 +115,28 @@ class Mat4():
         self.dados[1,0] = s
         self.dados[1,1] = c
         return self
+    #projeção perspectiva
+    def perspectiva(self,fov_y:float,aspect_ratio:float,perto:float,longe:float)->"Mat4":
+        self.dados[:] = 0.0
+        #fov_y field of view y
+        f = 1.0 / np.tan(np.radians(fov_y) / 2.0)
+        self.dados[0,0] = f / aspect_ratio  # Scale X
+        self.dados[1,1] = f                 # Scale Y
+        self.dados[2,2] = -(longe + perto) / (longe - perto)      # Z mapping
+        self.dados[2,3] = -(2.0 * longe * perto) / (longe - perto)  # Z translation
+        self.dados[3,2] = -1.0  # Perspective divide (w = -z)
+        self.dados[3,3] = 0.0#patch pois este e´definido anteriormente como 1
+        return self
     def __mul__(self,other:"Mat4")->"Mat4":
         resp = Mat4()
-        resp.dados = other.dados.dot(self.dados)
+        resp.dados = self.dados.dot(other.dados)
         return resp
-#exemplo/manip dentro 
+#exemplo/manip dentro agr com perspectiva na formula
 class Moving_quad():
     def __init__(self):
         self.t = 0.0
         self.x_offset = 0.0
+        self.z = -2.0 #distancia da camera
         self.ang_z = 0.0
     def upt(self,dt:float)->None:
         self.t += 0.001 * dt
@@ -109,11 +145,11 @@ class Moving_quad():
         self.x_offset = np.sin(20* np.radians(self.t))
         self.ang_z = 10 * self.t
     def get_transform(self)-> np.array:
-        return (Mat4().rotacao(self.ang_z) * Mat4().translation(self.x_offset,0,0)).dados
+        return (Mat4().rotacao(self.ang_z) * Mat4().translation(self.x_offset, 0, self.z)).dados
 
 #endregion matriz
 
-#region vertex buffe(agr é index buffer)
+#region vertex buffer(agr é index buffer)
 class Mesh():
     def __init__(self):
         self.VAO = glGenVertexArrays(1)
@@ -166,6 +202,8 @@ class Mesh():
         #bind VAO
         glBindVertexArray(self.VAO)
         glBindBuffer(GL_ARRAY_BUFFER,self.VBO)#vertex data para desenhar(array buffer)
+
+        glBufferData(GL_ARRAY_BUFFER,vertices.nbytes,vertices,GL_STATIC_DRAW)#nn indica que vai desenhar
         #especificar e mandar
         attr_index = 0
         size = 3
@@ -175,10 +213,10 @@ class Mesh():
         glEnableVertexAttribArray(attr_index)
 
         attr_index = 1
-        size = 2 #trocar a cor
+        size = 1 #trocar a cor
         offset = 12
         #diff por conta de um I (de integer)
-        glVertexAttribIPointer(attr_index,size,GL_UNSIGNED_INT,stride,ctypes.c_void_p(offset))
+        glVertexAttribIPointer(attr_index,size,GL_INT,stride,ctypes.c_void_p(offset))
         glEnableVertexAttribArray(attr_index)
 
         attr_index += 1
@@ -190,28 +228,31 @@ class Mesh():
         #mandar para gpu
         #target, num bytes, data enviada, modo de uso(é mandado para vbo)
         
-        glBufferData(GL_ARRAY_BUFFER,vertices.nbytes,vertices,GL_STATIC_DRAW)#nn indica que vai desenhar
         
         #mais sim que os dados vao ser usados para desenhar
         self.index_count = 6
-        indices = np.array([0,1,2,2,3,0],dtype=np.ubyte)
+        indices = np.array([0,1,2,2,3,0], dtype=np.uint32)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,self.EBO)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER,indices.nbytes,indices,GL_STATIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER,0)
+
         #mesh configurada
         return self
     def draw(self) -> None:
         glBindVertexArray(self.VAO)#binda VAO com dados de vertex
-        glDrawElements(GL_TRIANGLES,self.index_count,GL_UNSIGNED_BYTE,ctypes.c_void_p(0))
+        glDrawElements(GL_TRIANGLES,self.index_count,GL_UNSIGNED_INT,ctypes.c_void_p(0))
         #bind
     def destroy(self)->None:
-        glDeleteVertexArrays(2,(self.VAO,))#num de vertex array deletados, colecao de dados 
+        glDeleteVertexArrays(1,(self.VAO,))#num de vertex array deletados, colecao de dados 
         #lembre que vbo e ebo juntos entao precisamos deletar os dois
-        glDeleteBuffers(1,(self.VBO,self.EBO))
+        glDeleteBuffers(2,(self.VBO,self.EBO))
 #endregion
+
 #region widget
 class OpenGLWidget(QOpenGLWidget):
     #contexto open gl(initializeGL,paintGL)
     def initializeGL(self):
+        glDisable(GL_CULL_FACE)
         cor_tela_opgl = (0.1, 0.1, 0.2, 1)
         glClearColor(cor_tela_opgl[0],cor_tela_opgl[1],cor_tela_opgl[2],cor_tela_opgl[3])
         #criar vertex layout
@@ -224,37 +265,55 @@ class OpenGLWidget(QOpenGLWidget):
         vertex_path = os.path.join(BASE_DIR+"\\shader\\", "vertex.txt")
         fragment_path = os.path.join(BASE_DIR+"\\shader\\", "fragment.txt")
         #garantiu que ache os arquivos
-        self.shader = make_shader(vertex_path,fragment_path)
+        self.shader = Shader(vertex_path,fragment_path)
+        self.shader.use()
+        self.tex_loc = glGetUniformLocation(self.shader.program,"my_texture")
+        self.proj_loc = glGetUniformLocation(self.shader.program,"projecao")
+        self.transform_loc = glGetUniformLocation(self.shader.program,"transform")
+        glUniform1i(self.tex_loc, 0)
+
+        fov_y = 60.0
+        aspect_ratio = 4.0/3.0
+        perto = 0.1
+        longe = 10.0
+        proj_mat = Mat4().perspectiva(fov_y,aspect_ratio,perto,longe)
+        #definindo projecao de perspectiva
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
         #framerate
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
         self.timer.start(16)  # ~60 FPS (1000ms / 60 ≈ 16ms)
+        #outros
+        glEnable(GL_DEPTH_TEST)
+    
     def animate(self):
         self.quad.upt(1.0)  # atualiza a posição
         self.update()  # força o paintGL() a ser chamado novamente
+    
     def resizeGL(self, w, h):
+        self.shader.use()
+
         glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(45, w / h if h else 1, 0.1, 50.0)
-        glMatrixMode(GL_MODELVIEW)
+        aspect_ratio = w / h if h else 1.0
+        proj_mat = Mat4().perspectiva(60.0, aspect_ratio, 0.1, 10.0)
+
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         #configurando
-        glUseProgram(self.shader)#usar programa shader
-        tex_loc = glGetUniformLocation(self.shader, "tex")
-        glUniform1i(tex_loc, 0)
+        self.shader.use()#usar programa shader
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glUniform1i(self.tex_loc, 0)
+        glActiveTexture(GL_TEXTURE0)
         self.textura.use()
-        location = glGetUniformLocation(self.shader,"transform")
-        glUniformMatrix4fv(location,1,GL_FALSE,self.quad.get_transform())
+        glUniformMatrix4fv(self.transform_loc, 1, GL_TRUE, self.quad.get_transform())
         self.mesh.draw()
 
     #limpar recursos de gpu
     def cleanup(self):
         self.makeCurrent()   # ativa contexto
-        glDeleteProgram(self.shader)#chamar qnd fechar aplicacao (optimizar e jeito correto de liberar espaço)
-        glDeleteVertexArrays(1, [self.VAO])
-        self.doneCurrent()
         self.mesh.destroy()
+        glDeleteProgram(self.shader)#chamar qnd fechar aplicacao (optimizar e jeito correto de liberar espaço)
         self.textura.destroy()
+        self.doneCurrent()

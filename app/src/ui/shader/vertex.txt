@@ -9,16 +9,19 @@ const vec3 colors[3] = vec3[](
 );
 
 layout (location=0) in vec3 vertex_position;
-layout (location=1) in uint color_index;
+layout (location=1) in int color_index;
 layout (location=2) in vec2 tex_coord;
 //output de vetor
 out vec3 fragmentColor;
 out vec2 fragment_tex_coord;
 uniform mat4 transform;
+uniform mat4 projecao;
 
 void main(){
-    //programa realizando o shader qnd convocado
-    gl_Position = transform * vec4(vertex_position,1.0);
+    //gl_Position.w = 1.0;//"proximidade da cam"(Coordenadas homogêneas) é  uma dimensçao extra (padrao é 1.0) aqui estava sendo definido manualmente
+    //agr é definido pelo cod py
     fragmentColor = colors[color_index];
     fragment_tex_coord = tex_coord;
+    //programa realizando o shader qnd convocado
+    gl_Position = projecao * transform * vec4(vertex_position,1.0);
 }

@@ -38,23 +38,12 @@ class janela_principal(QWidget):
         self.setLayout(layout)
         
         self.setup_atalhos()
-    #atalhos
+    #atalhos globais
     def setup_atalhos(self):
-        # Atalho para alternar sessão (Esc)
-        atalho_sessao = QShortcut(QKeySequence("Esc"), self)
-        atalho_sessao.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        atalho_sessao.activated.connect(self.toggle_sessao)
-
         # Atalho para sair (Ctrl+Q)
         atalho_sair = QShortcut(QKeySequence("Ctrl+Q"), self)
         atalho_sair.setContext(Qt.ShortcutContext.ApplicationShortcut)
         atalho_sair.activated.connect(QApplication.quit)
-    
-    def toggle_sessao(self):
-        # Encontrar o botão de sessão na tela DM
-        btn = self.tela_dm.btn_sessao
-        btn.setChecked(not btn.isChecked())
-        btn.clicked.emit(btn.isChecked())
     #ir para outras telas
     def ir_anotacoes(self):
         self.stacked.setCurrentWidget(self.tela_anotacoes)
@@ -186,6 +175,20 @@ class Controller(QWidget):
         #botoes que tem atalhos
         self.btn_sessao = alertar_inicio_fim
 
+        self.setup_atalhos()
+    #atalhos locais
+    def setup_atalhos(self):
+        # Atalho para alternar sessão (Esc)
+        atalho_sessao = QShortcut(QKeySequence("Esc"), self)
+        atalho_sessao.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        atalho_sessao.activated.connect(self.toggle_sessao)
+    
+    def toggle_sessao(self):
+        # Encontrar o botão de sessão na tela DM
+        btn = self.btn_sessao
+        btn.setChecked(not btn.isChecked())
+        btn.clicked.emit(btn.isChecked())
+
     #funções botoes
     #alerta de sessão ao jogadores
     def sessao(self, checked):
@@ -287,11 +290,11 @@ class configs(QWidget):
         menu_topo = QHBoxLayout()
         menu_fundo = QHBoxLayout()
 
-        configs_infos.addWidget(QLabel("configurações"))
         voltar_button = QPushButton("Voltar")
         voltar_button.clicked.connect(voltar)
         menu_topo.addWidget(voltar_button)
         apagar_dados = QPushButton("excluir dados salvos")
+        apagar_dados.setStyleSheet(f":hover {{background-color: #fc0303;}}")
         menu_fundo.addWidget(apagar_dados)
         layout_base.addLayout(menu_topo,1,1)
         layout_base.addLayout(configs_infos,2,1)
