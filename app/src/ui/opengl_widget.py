@@ -73,7 +73,7 @@ class Material():
 
 #region matriz
 class Mat4():
-    #4x4
+    #Matriz 4x4
     def __init__(self):
         self.dados = np.zeros((4,4),dtype=np.float32)
         for i in range(4):
@@ -83,18 +83,34 @@ class Mat4():
         self.dados[1,3] = y
         self.dados[2,3] = z
         return self
-#exemplo
+    def rotacao(self,theta:float)->"Mat4":
+        theta = np.radians(theta)
+        c = np.cos(theta) 
+        s = np.sin(theta)
+        self.dados[0,0] = c
+        self.dados[0,1] = -s
+        self.dados[1,0] = s
+        self.dados[1,1] = c
+        return self
+    def __mul__(self,other:"Mat4")->"Mat4":
+        resp = Mat4()
+        resp.dados = other.dados.dot(self.dados)
+        return resp
+#exemplo/manip dentro 
 class Moving_quad():
     def __init__(self):
         self.t = 0.0
         self.x_offset = 0.0
+        self.ang_z = 0.0
     def upt(self,dt:float)->None:
         self.t += 0.001 * dt
         if self.t> 360:
             self.t -= 360
         self.x_offset = np.sin(20* np.radians(self.t))
+        self.ang_z = 10 * self.t
     def get_transform(self)-> np.array:
-        return Mat4().translation(self.x_offset,0,0).dados
+        return (Mat4().rotacao(self.ang_z) * Mat4().translation(self.x_offset,0,0)).dados
+
 #endregion matriz
 
 #region vertex buffe(agr é index buffer)
