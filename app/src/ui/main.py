@@ -1,11 +1,12 @@
+#gui
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QPalette, QIcon,QSurfaceFormat
+from PyQt6.QtGui import QColor, QPalette, QIcon,QSurfaceFormat, QShortcut, QKeySequence
 from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
                              QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
-                             QHBoxLayout, QPushButton, QMainWindow)#deste jeitop facilita a visualização do que sera importado
+                             QHBoxLayout, QPushButton)#deste jeitop facilita a visualização do que sera importado
 from opengl_widget import OpenGLWidget
 import sys
-
+#funcionalidades(bot,teclado,etc)
 #from discord_bot.bot import aviso
 app = QApplication(sys.argv)
 #paleta de cor
@@ -14,35 +15,65 @@ cores = {
     "botao": "#080d3f",
     "texto": "#ffffff"
 }
+#iniciando/configurando janelas
 class janela_principal(QWidget):
     def __init__(self):
         super().__init__()
         self.stacked = QStackedWidget()
-        self.tela_controller = Controller(self.ir_anotacoes,self.ir_configs)
+        self.tela_dm = Controller(self.ir_anotacoes,self.ir_configs,self.ir_mapas)
         self.tela_anotacoes = anotacoes(self.voltar)
+        self.tela_mapas = Mapas(self.voltar)
         self.tela_configs = configs(self.voltar)
-        self.stacked.addWidget(self.tela_controller)
+
+        self.stacked.addWidget(self.tela_dm)
         self.stacked.addWidget(self.tela_anotacoes)
+        self.stacked.addWidget(self.tela_mapas)
         self.stacked.addWidget(self.tela_configs)
+
         self.setWindowIcon(QIcon("app/src/ui/imgs/dado-20-lados.png"))
         self.setWindowTitle("singularidade rpg controller sessão inativa")
+
         layout = QVBoxLayout()
         layout.addWidget(self.stacked)
         self.setLayout(layout)
+        
+        self.setup_atalhos()
+    #atalhos
+    def setup_atalhos(self):
+        # Atalho para alternar sessão (Esc)
+        atalho_sessao = QShortcut(QKeySequence("Esc"), self)
+        atalho_sessao.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        atalho_sessao.activated.connect(self.toggle_sessao)
+
+        # Atalho para sair (Ctrl+Q)
+        atalho_sair = QShortcut(QKeySequence("Ctrl+Q"), self)
+        atalho_sair.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        atalho_sair.activated.connect(QApplication.quit)
+    
+    def toggle_sessao(self):
+        # Encontrar o botão de sessão na tela DM
+        btn = self.tela_dm.btn_sessao
+        btn.setChecked(not btn.isChecked())
+        btn.clicked.emit(btn.isChecked())
     #ir para outras telas
     def ir_anotacoes(self):
         self.stacked.setCurrentWidget(self.tela_anotacoes)
+    def ir_mapas(self):
+        self.stacked.setCurrentWidget(self.tela_mapas)
     def ir_configs(self):
         self.stacked.setCurrentWidget(self.tela_configs)
     def voltar(self):
-        self.stacked.setCurrentWidget(self.tela_controller)
+        self.stacked.setCurrentWidget(self.tela_dm)
 
 #telas
+#region dm
 class Controller(QWidget):
-    def __init__(self, ir_anotacoes,ir_configs):
+    def __init__(self, ir_anotacoes,ir_configs,ir_mapas):
         super().__init__()
+        #configuraççoes iniciais
         self.ir_anotacoes = ir_anotacoes
         self.ir_configs = ir_configs
+        self.ir_mapas = ir_mapas
         self.setAutoFillBackground(True)
         layout_base = QVBoxLayout()
         menu_topo = QHBoxLayout()
@@ -76,6 +107,7 @@ class Controller(QWidget):
         #menus
         #topo
         alertar_inicio_fim = QPushButton("Iniciar sessão")
+        
         alertar_inicio_fim.setCheckable(True)
         alertar_inicio_fim.clicked.connect(self.sessao)
         anotacoes = QPushButton("Anotações")
@@ -89,6 +121,7 @@ class Controller(QWidget):
         menu_topo.addWidget(confs)
         menu_topo.addWidget(sala_id_text)
         menu_topo.addWidget(sair_sala)
+        mapas.clicked.connect(self.ir_mapas)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
 
@@ -150,6 +183,9 @@ class Controller(QWidget):
         user_input_baixo.addWidget(self.input)
         user_input_baixo.addWidget(mandar_msg_bot)
         self.setLayout(layout_base)
+        #botoes que tem atalhos
+        self.btn_sessao = alertar_inicio_fim
+
     #funções botoes
     #alerta de sessão ao jogadores
     def sessao(self, checked):
@@ -169,6 +205,43 @@ class Controller(QWidget):
     def bot_msg(self):
         u_input = self.input.text()
         print(u_input)
+#endregion dm
+#region mapas
+class Mapas(QWidget):
+    def __init__(self, voltar):
+        super().__init__()
+        self.voltar = voltar
+        layout_base = QGridLayout()
+        mapas = QHBoxLayout()
+        controles_anotacoes = QVBoxLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+        #controles anotações
+        nv_pasta = QPushButton("novo mapa")
+        apagar_anotacoes = QPushButton("apagar mapa")
+        controles_anotacoes.addWidget(nv_pasta)
+        controles_anotacoes.addWidget(apagar_anotacoes)
+        mapas.addLayout(controles_anotacoes)
+        #anotação
+        mapas_layout = OpenGLWidget()
+        mapas_layout.setMinimumSize(500,100)
+        mapas_layout.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+            )#so funciona aceitando 2 parametros
+        mapas.addWidget(mapas_layout)
+        #resto do menu
+        salvar_button = QPushButton("salvar")
+        menu_fundo.addWidget(salvar_button)
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(mapas,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
+#endregion mapas
+#region anotaçoes
 class anotacoes(QWidget):
     def __init__(self, voltar):
         super().__init__()
@@ -203,7 +276,8 @@ class anotacoes(QWidget):
         layout_base.addLayout(anotacao,2,1)
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
-
+#endregion anotaçoes
+#region configs
 class configs(QWidget):
     def __init__(self, voltar):
         super().__init__()
@@ -223,6 +297,8 @@ class configs(QWidget):
         layout_base.addLayout(configs_infos,2,1)
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
+#endregion configs
+#region detalhes finais
 #loop do app/janela
 window = janela_principal()
 window.show()
