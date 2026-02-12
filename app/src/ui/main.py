@@ -69,6 +69,7 @@ class Controller(QWidget):
         controle = QGridLayout()
         tresD_render = QHBoxLayout()
         open_gl = OpenGLWidget()
+        open_gl.setFocus()#
         open_gl.setSizePolicy(QSizePolicy.Policy.Expanding,
                   QSizePolicy.Policy.Expanding)
         tresD_render.addWidget(open_gl)
@@ -227,6 +228,8 @@ class Mapas(QWidget):
         mapas.addLayout(controles_anotacoes)
         #anotação
         mapas_layout = OpenGLWidget()
+        mapas_layout.setFocus()
+
         mapas_layout.setMinimumSize(500,100)
         mapas_layout.setSizePolicy(
             QSizePolicy.Policy.Expanding,

@@ -1,7 +1,8 @@
 #region libs
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtGui import QImage
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt, QPoint
+
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram,compileShader
 #program representa o shader e o shader um modulo
@@ -12,18 +13,20 @@ import numpy as np
 import ctypes
 
 #endregion
-def gl_check(place=""):
-    err = glGetError()
-    if err != GL_NO_ERROR:
-        print(f"⚠️ OpenGL error em {place}: {err} (0x{err:x})")
-
 data_type_color_vertex = np.dtype({
     #u v são para texturas
     'names':['x','y','z','color','u','v'],
     'formats':[np.float32, np.float32, np.float32, np.int32, np.float32, np.float32],
     'offsets':[0,4,8,12,16,20],
     'itemsize':24})
-#region shaders
+uniform_type_model = 0
+uniform_type_view = 1
+uniform_type_projection = 2
+uniform_names = {
+    uniform_type_model : "transform",
+    uniform_type_view : "view",
+    uniform_type_projection: "projecao"
+}
 #graphic pipeline(vertex -> rasterizer(converter formas geométricas (primitivas) e criando shader na gpu
 def make_shader(arquivo_vertex:str,arquivo_frag:str) -> int:
     vertex_module = make_shader_module(arquivo_vertex,GL_VERTEX_SHADER)
@@ -34,6 +37,9 @@ def make_shader_module(arquivo:str,module_type):
     with open(arquivo,'r', encoding="utf-8") as file:
         src_code = file.readlines()#pega o codigo do shader do txt e mandando para a gpu
         return compileShader(src_code,module_type)#compila para gpu
+#adaptar centro de widget
+#def handle_mouse(self,center_x):
+#region shaders
 class Shader:
     def __init__(self, vertex_path, fragment_path):
         self.program = make_shader(vertex_path, fragment_path)
@@ -41,10 +47,11 @@ class Shader:
 
     def use(self):
         glUseProgram(self.program)
-    def upload_mat4(self,name:str,matrix:"Mat4")->None:
-        if name not in self.location:
+    def upload_mat4(self,uniform_type:int,matrix:"Mat4")->None:
+        if uniform_type not in self.location:
+            name = uniform_names[uniform_type]
             self.location[name] = glGetUniformLocation(self.program, name)
-        glUniformMatrix4fv(self.location[name], 1, GL_FALSE, matrix.dados)
+        glUniformMatrix4fv(self.location[uniform_type], 1, GL_FALSE, matrix.dados)
 
 
     def destroy(self):
@@ -228,6 +235,14 @@ class Camera():
     
     def view_transform(self) -> Mat4:
         return Mat4().camera(self.pos,self.direita,self.cima,self.frente)
+    #manip cam
+    def giro(self,dx:float,dy:float)->None:
+        self.yaw += dx
+        if self.yaw < 0 :
+            self.yaw += 360
+        if self.yaw > 360 :
+            self.yaw -= 360
+        self.pitch = min(89,max(-89,self.pitch + dy))
 #endregion Cam
 #region vertex buffer(agr é index buffer)
 class Mesh():
@@ -330,6 +345,41 @@ class Mesh():
 
 #region widget
 class OpenGLWidget(QOpenGLWidget):
+    #controle de cam
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMouseTracking(True)
+
+        self.dragging = False
+        self.last_mouse_pos = QPoint()
+        self.sensibilidade = 0.2
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = True
+            self.last_mouse_pos = event.position().toPoint()
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.dragging = False
+
+    def mouseMoveEvent(self, event):
+        if not self.dragging:
+            return
+        pos = event.position().toPoint()
+
+        dx = pos.x() - self.last_mouse_pos.x()
+        dy = pos.y() - self.last_mouse_pos.y()
+
+        self.last_mouse_pos = pos
+
+        #print(dx, dy)  # debug
+
+        self.cam.giro(dx * self.sensibilidade,
+                      -dy * self.sensibilidade)
+
+        self.cam.recalc()
     #contexto open gl(initializeGL,paintGL)
     def initializeGL(self):
         glDisable(GL_CULL_FACE)
