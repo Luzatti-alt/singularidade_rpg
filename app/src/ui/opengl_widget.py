@@ -11,8 +11,11 @@ import sys
 import os
 import numpy as np
 import ctypes
+import keyboard as kb
 
 #endregion
+sense = 0.2
+vel_mov = 0.1
 data_type_color_vertex = np.dtype({
     #u v são para texturas
     'names':['x','y','z','color','u','v'],
@@ -243,6 +246,9 @@ class Camera():
         if self.yaw > 360 :
             self.yaw -= 360
         self.pitch = min(89,max(-89,self.pitch + dy))
+    def movimento(self,quanto:Vec3)->None:
+        movimento = self.direita * quanto.dados[0] + self.cima * quanto.dados[1] + self.frente * quanto.dados[2]
+        self.pos = self.pos + movimento * vel_mov
 #endregion Cam
 #region vertex buffer(agr é index buffer)
 class Mesh():
@@ -354,7 +360,7 @@ class OpenGLWidget(QOpenGLWidget):
 
         self.dragging = False
         self.last_mouse_pos = QPoint()
-        self.sensibilidade = 0.2
+        self.sensibilidade = sense
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -380,6 +386,7 @@ class OpenGLWidget(QOpenGLWidget):
                       -dy * self.sensibilidade)
 
         self.cam.recalc()
+        self.update()
     #contexto open gl(initializeGL,paintGL)
     def initializeGL(self):
         glDisable(GL_CULL_FACE)
@@ -409,11 +416,11 @@ class OpenGLWidget(QOpenGLWidget):
         self.cam.recalc()
         fov_y = 60.0
         aspect_ratio = 4.0/3.0
-        perto = 0.1
-        longe = 10.0
+        perto = 0.0001
+        longe = 100.0
         proj_mat = Mat4().perspectiva(fov_y,aspect_ratio,perto,longe)
         #definindo projecao de perspectiva
-        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
+        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, proj_mat.dados.T)
         #framerate
         # Verificar matrizes
         self.timer = QTimer(self)
@@ -422,6 +429,7 @@ class OpenGLWidget(QOpenGLWidget):
         #outros
         glEnable(GL_DEPTH_TEST)
         #debug info
+        '''
         print(f"Mesh criada: VAO={self.mesh.VAO}, indices={self.mesh.index_count}")
         print(f"Textura: {self.textura.textura}")
         print(f"Shader program: {self.shader.program}")
@@ -432,8 +440,39 @@ class OpenGLWidget(QOpenGLWidget):
         print(f"Projeção:\n{proj_mat.dados}")
         print(f"Quad pos: {self.quad.pos.dados}")
         print(f"Camera pos: {self.cam.pos.dados}")
+        '''
     
     def animate(self):
+        #movimento de camera
+        movimento = Vec3(0,0,0)
+        #wasd
+        if kb.is_pressed('w'):
+            movimento.dados[2] -= 1
+        if kb.is_pressed('s'):
+            movimento.dados[2] += 1
+        if kb.is_pressed('a'):
+            movimento.dados[0] -= 1
+        if kb.is_pressed('d'):
+            movimento.dados[0] += 1
+        #setas
+        if kb.is_pressed('up'):
+            movimento.dados[2] -= 1
+        if kb.is_pressed('down'):
+            movimento.dados[2] += 1
+        if kb.is_pressed('left'):
+            movimento.dados[0] -= 1
+        if kb.is_pressed('right'):
+            movimento.dados[0] += 1
+        # subir / descer 
+        if kb.is_pressed('space'):
+            movimento.dados[1] += 1
+        if kb.is_pressed('ctrl'):
+            movimento.dados[1] -= 1
+        # aplica movimento
+        if movimento.magnitude() > 0:
+            movimento.normalize()
+            self.cam.movimento(movimento)
+        #atualizar tela
         self.quad.upt(1.0)  # atualiza a posição
         self.cam.recalc()#atualiza a camera e os vetores
         self.update()  # força o paintGL() a ser chamado novamente
@@ -443,7 +482,8 @@ class OpenGLWidget(QOpenGLWidget):
         glViewport(0, 0, w, h)
         aspect_ratio = w / h if h else 1.0
         proj_mat = Mat4().perspectiva(60.0, aspect_ratio, 0.1, 10.0)
-        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
+        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, proj_mat.dados.T)
+
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -452,8 +492,8 @@ class OpenGLWidget(QOpenGLWidget):
         glUniform1i(self.tex_loc, 0)
         glActiveTexture(GL_TEXTURE0)
         self.textura.use()
-        glUniformMatrix4fv(self.transform_loc, 1, GL_TRUE, self.quad.get_transform())
-        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.cam.view_transform().dados)
+        glUniformMatrix4fv(self.transform_loc, 1, GL_FALSE, self.quad.get_transform().T)
+        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.cam.view_transform().dados.T)
         self.mesh.draw()
 
     #limpar recursos de gpu
