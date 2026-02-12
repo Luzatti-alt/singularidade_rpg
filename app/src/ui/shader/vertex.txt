@@ -16,6 +16,7 @@ out vec3 fragmentColor;
 out vec2 fragment_tex_coord;
 uniform mat4 transform;
 uniform mat4 projecao;
+uniform mat4 view;
 
 void main(){
     //gl_Position.w = 1.0;//"proximidade da cam"(Coordenadas homogêneas) é  uma dimensçao extra (padrao é 1.0) aqui estava sendo definido manualmente
@@ -23,5 +24,5 @@ void main(){
     fragmentColor = colors[color_index];
     fragment_tex_coord = tex_coord;
     //programa realizando o shader qnd convocado
-    gl_Position = projecao * transform * vec4(vertex_position,1.0);
+    gl_Position = projecao * view * transform * vec4(vertex_position,1.0);
 }

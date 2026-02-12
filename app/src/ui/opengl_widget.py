@@ -12,6 +12,10 @@ import numpy as np
 import ctypes
 
 #endregion
+def gl_check(place=""):
+    err = glGetError()
+    if err != GL_NO_ERROR:
+        print(f"⚠️ OpenGL error em {place}: {err} (0x{err:x})")
 
 data_type_color_vertex = np.dtype({
     #u v são para texturas
@@ -40,7 +44,7 @@ class Shader:
     def upload_mat4(self,name:str,matrix:"Mat4")->None:
         if name not in self.location:
             self.location[name] = glGetUniformLocation(self.program, name)
-        glUniformMatrix4fv(self.location[name], 1, GL_TRUE, matrix.dados)
+        glUniformMatrix4fv(self.location[name], 1, GL_FALSE, matrix.dados)
 
 
     def destroy(self):
@@ -70,7 +74,7 @@ class Material():
         ptr.setsize(img.sizeInBytes())
         data = np.array(ptr, dtype=np.uint8).reshape(height, width, 4)
         # inverte verticalmente (OpenGL espera topo primeiro)
-        data = np.flip(data, axis   =0)
+        #data = np.flip(data, axis   =0)
 
     # Bind textura
         glBindTexture(GL_TEXTURE_2D, self.textura)
@@ -93,7 +97,35 @@ class Material():
     def destroy(self)->None:
         glDeleteTextures(1,(self.textura,))
 #endregion
+#region vetores(vec1/2/3)
+class Vec3:
+    def __init__(self,x:float = 0,y:float = 0,z:float = 0):
+        self.dados = np.array((x,y,z),dtype=np.float32)
 
+    def dot(self,other:"Vec3")->float:
+        resp = 0.0
+        for i in range(3):
+            resp += self.dados[i] * other.dados[i]
+        return resp
+    def magnitude(self) -> float:
+        return np.sqrt(self.dot(self))
+    def normalize(self) -> "Vec3":
+        magnitude = self.magnitude()
+        for i in range(3):
+            self.dados[i] = self.dados[i] / magnitude
+        return self
+    def cross_prod(self,other:"Vec3") -> "Vec3":
+        u = self.dados
+        v = other.dados
+        x = u[1] * v[2] - u[2] * v[1]
+        y = u[2] * v[0] - u[0] * v[2]
+        z = u[0] * v[1] - u[1] * v[0]
+        return Vec3(x,y,z)
+    def __mul__(self,coeficiente:float)->"Vec3":
+        return Vec3(coeficiente * self.dados[0],coeficiente * self.dados[1],coeficiente * self.dados[2])
+    def __add__(self,other:"Vec3")->"Vec3":
+        return Vec3(other.dados[0] + self.dados[0], other.dados[1] + self.dados[1], other.dados[2] + self.dados[2])
+#endregion vetores(vec1/2/3)
 #region matriz
 class Mat4():
     #Matriz 4x4
@@ -101,18 +133,19 @@ class Mat4():
         self.dados = np.zeros((4,4),dtype=np.float32)
         for i in range(4):
             self.dados[i][i] = 1.0
-    def translation(self,x:float,y:float,z:float)->"Mat4":
-        self.dados[0,3] = x
-        self.dados[1,3] = y
-        self.dados[2,3] = z
+    def translation(self,pos:Vec3)->"Mat4":
+        #fazendo individualmente (patch)
+        self.dados[0,3] = pos.dados[0]
+        self.dados[1,3] = pos.dados[1]
+        self.dados[2,3] = pos.dados[2]
         return self
     def rotacao(self,theta:float)->"Mat4":
         theta = np.radians(theta)
         c = np.cos(theta) 
         s = np.sin(theta)
         self.dados[0,0] = c
-        self.dados[0,1] = -s
-        self.dados[1,0] = s
+        self.dados[0,1] = s
+        self.dados[1,0] = -s
         self.dados[1,1] = c
         return self
     #projeção perspectiva
@@ -127,6 +160,20 @@ class Mat4():
         self.dados[3,2] = -1.0  # Perspective divide (w = -z)
         self.dados[3,3] = 0.0#patch pois este e´definido anteriormente como 1
         return self
+    def camera(self,pos:Vec3,direita:Vec3,cima:Vec3,frente:Vec3):
+        #orientação em fp(first person)
+        self.dados[:] = np.identity(4, dtype=np.float32)
+        # Preenche as linhas 0,1,2 com os vetores (direita, cima, -frente)
+        self.dados[0, 0:3] = direita.dados
+        self.dados[1, 0:3] = cima.dados
+        self.dados[2, 0:3] = -frente.dados
+        # Translação (linha 3)
+        self.dados[3, 0] = -pos.dot(direita)
+        self.dados[3, 1] = -pos.dot(cima)
+        self.dados[3, 2] =  pos.dot(frente)
+        self.dados[3, 3] = 1.0
+        return self
+
     def __mul__(self,other:"Mat4")->"Mat4":
         resp = Mat4()
         resp.dados = self.dados.dot(other.dados)
@@ -135,20 +182,53 @@ class Mat4():
 class Moving_quad():
     def __init__(self):
         self.t = 0.0
-        self.x_offset = 0.0
-        self.z = -2.0 #distancia da camera
+        self.pos = Vec3(0.0,0.0,-2.0)
+
         self.ang_z = 0.0
     def upt(self,dt:float)->None:
         self.t += 0.001 * dt
         if self.t> 360:
             self.t -= 360
-        self.x_offset = np.sin(20* np.radians(self.t))
+        self.pos.dados[1] = np.sin(20* np.radians(self.t))
         self.ang_z = 10 * self.t
     def get_transform(self)-> np.array:
-        return (Mat4().rotacao(self.ang_z) * Mat4().translation(self.x_offset, 0, self.z)).dados
+        return (Mat4().translation(self.pos) * Mat4().rotacao(self.ang_z)).dados
+
+
 
 #endregion matriz
+#region Cam
+class Camera():
+    Cima = Vec3(0, 1, 0)
+    def __init__(self):
+        self.pos = Vec3(0,0,3)
 
+        self.yaw = -50.0
+        self.pitch = 0.0
+
+        self.frente = Vec3(0,0,-1)
+        self.direita = Vec3(1,0,0)
+        self.cima = Vec3(0,1,0)
+
+    #recalcula vetores
+    def recalc(self) -> "Vec3":
+        yaw_rad = np.radians(self.yaw)
+        pitch_rad = np.radians(self.pitch)
+    
+        c = np.cos(yaw_rad)
+        s = np.sin(yaw_rad)
+        c2 = np.cos(pitch_rad)
+        s2 = np.sin(pitch_rad)
+        self.frente.dados[0] = c * c2
+        self.frente.dados[1] = s2
+        self.frente.dados[2] = s * c2
+        self.frente.normalize()
+        self.direita = self.frente.cross_prod(Camera.Cima).normalize()
+        self.cima = self.direita.cross_prod(self.frente).normalize()
+    
+    def view_transform(self) -> Mat4:
+        return Mat4().camera(self.pos,self.direita,self.cima,self.frente)
+#endregion Cam
 #region vertex buffer(agr é index buffer)
 class Mesh():
     def __init__(self):
@@ -261,17 +341,22 @@ class OpenGLWidget(QOpenGLWidget):
         self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
         self.textura = Material().carregar_textura(BASE_DIR+"\\imgs\\dado-20-lados.png")
         self.quad = Moving_quad()
+        self.cam = Camera()
         #achando arquivos necessarios para o shader
         vertex_path = os.path.join(BASE_DIR+"\\shader\\", "vertex.txt")
         fragment_path = os.path.join(BASE_DIR+"\\shader\\", "fragment.txt")
         #garantiu que ache os arquivos
         self.shader = Shader(vertex_path,fragment_path)
+        glActiveTexture(GL_TEXTURE0)
         self.shader.use()
+        glBindVertexArray(self.mesh.VAO)
         self.tex_loc = glGetUniformLocation(self.shader.program,"my_texture")
         self.proj_loc = glGetUniformLocation(self.shader.program,"projecao")
         self.transform_loc = glGetUniformLocation(self.shader.program,"transform")
+        self.view_loc = glGetUniformLocation(self.shader.program,"view")
         glUniform1i(self.tex_loc, 0)
-
+    
+        self.cam.recalc()
         fov_y = 60.0
         aspect_ratio = 4.0/3.0
         perto = 0.1
@@ -280,40 +365,52 @@ class OpenGLWidget(QOpenGLWidget):
         #definindo projecao de perspectiva
         glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
         #framerate
+        # Verificar matrizes
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
         self.timer.start(16)  # ~60 FPS (1000ms / 60 ≈ 16ms)
         #outros
         glEnable(GL_DEPTH_TEST)
+        #debug info
+        print(f"Mesh criada: VAO={self.mesh.VAO}, indices={self.mesh.index_count}")
+        print(f"Textura: {self.textura.textura}")
+        print(f"Shader program: {self.shader.program}")
+        print(f"Uniforms: tex={self.tex_loc}, proj={self.proj_loc}, transform={self.transform_loc}, view={self.view_loc}")
+        print(f"Camera frente: {self.cam.frente.dados}")
+        print(f"Camera direita: {self.cam.direita.dados}")
+        print(f"Camera cima: {self.cam.cima.dados}")
+        print(f"Projeção:\n{proj_mat.dados}")
+        print(f"Quad pos: {self.quad.pos.dados}")
+        print(f"Camera pos: {self.cam.pos.dados}")
     
     def animate(self):
         self.quad.upt(1.0)  # atualiza a posição
+        self.cam.recalc()#atualiza a camera e os vetores
         self.update()  # força o paintGL() a ser chamado novamente
     
     def resizeGL(self, w, h):
         self.shader.use()
-
         glViewport(0, 0, w, h)
         aspect_ratio = w / h if h else 1.0
         proj_mat = Mat4().perspectiva(60.0, aspect_ratio, 0.1, 10.0)
-
         glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         #configurando
         self.shader.use()#usar programa shader
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUniform1i(self.tex_loc, 0)
         glActiveTexture(GL_TEXTURE0)
         self.textura.use()
         glUniformMatrix4fv(self.transform_loc, 1, GL_TRUE, self.quad.get_transform())
+        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.cam.view_transform().dados)
         self.mesh.draw()
 
     #limpar recursos de gpu
     def cleanup(self):
+        #chamar qnd fechar aplicacao (optimizar e jeito correto de liberar espaço)
         self.makeCurrent()   # ativa contexto
         self.mesh.destroy()
-        glDeleteProgram(self.shader)#chamar qnd fechar aplicacao (optimizar e jeito correto de liberar espaço)
+        self.shader.destroy()
         self.textura.destroy()
         self.doneCurrent()
