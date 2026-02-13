@@ -22,7 +22,7 @@ class janela_principal(QWidget):
         self.stacked = QStackedWidget()
         self.tela_dm = Controller(self.ir_anotacoes,self.ir_configs,self.ir_mapas,self.ir_salas)
         self.salas = Salas(self.voltar,self.entrar_sala)
-        self.visitantes = Visitante(self.voltar,self.ir_configs,self.ir_salas)
+        self.visitantes = Visitante(self.voltar,self.ir_configs,self.ir_salas,self.ir_anotacoes)
         self.tela_anotacoes = anotacoes(self.voltar)
         self.tela_mapas = Mapas(self.voltar)
         self.tela_configs = configs(self.voltar)
@@ -84,9 +84,10 @@ class Salas(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 class Visitante(QWidget):
-    def __init__(self,voltar,ir_configs,ir_salas):
+    def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes):
         super().__init__()
         #configuraççoes iniciais
+        self.ir_anotacoes = ir_anotacoes
         self.ir_configs = ir_configs
         self.ir_salas = ir_salas
         self.setAutoFillBackground(True)
@@ -121,20 +122,40 @@ class Visitante(QWidget):
         """)
         #menus
         #topo
+        anotacoes = QPushButton("Anotações")
         token = QPushButton("Tokens/fichas")
         confs = QPushButton("Configurações")
         sala_id_text = QLabel("ID sala:")
         sair_sala = QPushButton("Sair da sala")
+        menu_topo.addWidget(anotacoes)
         menu_topo.addWidget(token)
         menu_topo.addWidget(confs)
         menu_topo.addWidget(sala_id_text)
         menu_topo.addWidget(sair_sala)
         sair_sala.clicked.connect(self.ir_salas)
+        anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
+
+        #controle geral
+        interacao_chat = QHBoxLayout()
+        chat = QLabel("add chat futuramente")
+        chat.setStyleSheet(f"background-color:{cores['botao']};")
+        chat_dialog = QLineEdit()
+        chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
+        chat_dialog_mandar = QPushButton("mandar msg")
+        interacao_chat.addWidget(chat_dialog)
+        interacao_chat.addWidget(chat_dialog_mandar)
+
+        controle.addWidget(chat, 1, 1)
+        controle.addLayout(interacao_chat, 2, 1)
 
         layout_base.addLayout(menu_topo)
         layout_base.addLayout(meio_tela)
+        layout_base.setStretch(0, 1)
+        layout_base.setStretch(1, 8)
+        layout_base.setStretch(2, 1)
         self.setLayout(layout_base)
+        #botoes que tem atalhos
 
 #region dm
 class Controller(QWidget):
