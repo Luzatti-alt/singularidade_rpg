@@ -18,6 +18,7 @@ cores = {
 #iniciando/configurando janelas
 class janela_principal(QWidget):
     def __init__(self):
+        self.tela_anterior = None
         super().__init__()
         self.stacked = QStackedWidget()
         self.tela_dm = Controller(self.ir_anotacoes,self.ir_configs,self.ir_mapas,self.ir_salas)
@@ -49,18 +50,24 @@ class janela_principal(QWidget):
         atalho_sair.setContext(Qt.ShortcutContext.ApplicationShortcut)
         atalho_sair.activated.connect(QApplication.quit)
     #ir para outras telas
+    def ir_para(self, widget):
+        self.tela_anterior = self.stacked.currentWidget()
+        self.stacked.setCurrentWidget(widget)
     def entrar_sala(self):
-        self.stacked.setCurrentWidget(self.visitantes)
+        self.ir_para(self.visitantes)
     def ir_salas(self):
-        self.stacked.setCurrentWidget(self.salas)
+        self.ir_para(self.salas)
     def ir_anotacoes(self):
-        self.stacked.setCurrentWidget(self.tela_anotacoes)
+        self.ir_para(self.tela_anotacoes)
     def ir_mapas(self):
-        self.stacked.setCurrentWidget(self.tela_mapas)
+        self.ir_para(self.tela_mapas)
     def ir_configs(self):
-        self.stacked.setCurrentWidget(self.tela_configs)
+        self.ir_para(self.tela_configs)
     def voltar(self):
-        self.stacked.setCurrentWidget(self.tela_dm)
+        if self.tela_anterior:
+            self.stacked.setCurrentWidget(self.tela_anterior)
+
+        #trocar para voltar para o widget anterior ao invez de voltar para a tela de dm
 
 #telas
 class Salas(QWidget):
