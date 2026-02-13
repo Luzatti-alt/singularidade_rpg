@@ -1,4 +1,9 @@
+discord
 discord.py
 python-dotenv
 PyQt6
 PyOpenGL
+numpy
+keyboard
+flask
+Flask-Bcrypt  
