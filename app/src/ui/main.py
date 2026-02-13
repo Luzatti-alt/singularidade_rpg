@@ -249,6 +249,15 @@ class Controller(QWidget):
         lista_npcs.addItem("placehoarder 3")
         add_npc = QPushButton("adicionar npc")
 
+        interacao_chat = QHBoxLayout()
+        chat = QLabel("add chat futuramente")
+        chat.setStyleSheet(f"background-color:{cores['botao']};")
+        chat_dialog = QLineEdit()
+        chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
+        chat_dialog_mandar = QPushButton("mandar msg")
+        interacao_chat.addWidget(chat_dialog)
+        interacao_chat.addWidget(chat_dialog_mandar)
+
         #adicionando no layout
         controle.addWidget(add_efeitos_sonoros, 1, 1)
         controle.addWidget(lista_efeitos_sonoros, 2, 1)
@@ -263,6 +272,8 @@ class Controller(QWidget):
         controle.addWidget(add_inimigo, 10, 1)
         controle.addWidget(lista_npcs, 11, 1)
         controle.addWidget(add_npc, 12, 1)
+        controle.addWidget(chat, 13, 1)
+        controle.addLayout(interacao_chat, 14, 1)
         
         #baixo
         #adicionar/mandar aviso especifico
