@@ -1,0 +1,1 @@
+#poder gerenciar particulas/efeitos no opengl

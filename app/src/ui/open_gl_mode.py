@@ -1,0 +1,1 @@
+#gerenciador de modo opengl(grafico e performance)
