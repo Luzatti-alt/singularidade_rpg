@@ -1,13 +1,21 @@
-#gui
-from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QColor, QPalette, QIcon,QSurfaceFormat, QShortcut, QKeySequence
-from PyQt6.QtWidgets import (QStackedWidget,QSizePolicy,QApplication,QWidget,QTextEdit,
-                             QComboBox,QVBoxLayout, QLabel,QLineEdit,QGridLayout,
-                             QHBoxLayout, QPushButton)#deste jeitop facilita a visualização do que sera importado
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QKeySequence
+from PySide6.QtWidgets import *#deste jeitop facilita a visualização do que sera importado
 from opengl_widget import OpenGLWidget
 import sys
+
 #funcionalidades(bot,teclado,etc)
 #from discord_bot.bot import aviso
+
+# Configurar OpenGL ANTES de criar QApplication (necessário no PySide6)
+fmt = QSurfaceFormat()
+fmt.setVersion(3, 3)  # OpenGL 3.3
+fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+fmt.setDepthBufferSize(24)
+fmt.setStencilBufferSize(8)
+fmt.setSamples(4)  # Anti-aliasing
+QSurfaceFormat.setDefaultFormat(fmt)
+
 app = QApplication(sys.argv)
 #paleta de cor
 cores = {
@@ -458,4 +466,4 @@ class configs(QWidget):
 #loop do app/janela
 window = janela_principal()
 window.show()
-app.exec()
+sys.exit(app.exec())

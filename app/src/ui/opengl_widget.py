@@ -1,7 +1,7 @@
 #region libs
-from PyQt6.QtOpenGLWidgets import QOpenGLWidget
-from PyQt6.QtGui import QImage
-from PyQt6.QtCore import QTimer, Qt, QPoint
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtGui import QImage
+from PySide6.QtCore import QTimer, Qt, QPoint
 
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram,compileShader
@@ -11,7 +11,6 @@ import sys
 import os
 import numpy as np
 import ctypes
-import keyboard as kb
 
 #endregion
 sense = 0.2
@@ -79,21 +78,22 @@ class Material():
         img = img.convertToFormat(QImage.Format.Format_RGBA8888)
         width = img.width()
         height = img.height()
-        # Pega dados e cria numpy array
-        ptr = img.bits()
-        ptr.setsize(img.sizeInBytes())
-        data = np.array(ptr, dtype=np.uint8).reshape(height, width, 4)
+        
+        # Pega dados e cria numpy array (corrigido para PySide6)
+        ptr = img.constBits()
+        # Criar array diretamente do buffer sem usar setsize
+        data = np.frombuffer(ptr, dtype=np.uint8, count=img.sizeInBytes()).reshape(height, width, 4)
+        
         # inverte verticalmente (OpenGL espera topo primeiro)
-        #data = np.flip(data, axis   =0)
+        #data = np.flip(data, axis=0)
 
-    # Bind textura
+        # Bind textura
         glBindTexture(GL_TEXTURE_2D, self.textura)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-
 
         # envia dados para GPU
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
@@ -211,9 +211,9 @@ class Moving_quad():
 class Camera():
     Cima = Vec3(0, 1, 0)
     def __init__(self):
-        self.pos = Vec3(0,0,3)
+        self.pos = Vec3(0, 0, 5)  # Mais longe para ver melhor
 
-        self.yaw = -50.0
+        self.yaw = -90.0  # Olhando direto para -Z
         self.pitch = 0.0
 
         self.frente = Vec3(0,0,-1)
@@ -355,14 +355,33 @@ class OpenGLWidget(QOpenGLWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.shader = None
+        self.mesh = None
+        self.textura = None
+        self.cam = None
+        self.quad = None
+
+        # Teclas pressionadas (substituir keyboard)
+        self.keys_pressed = set()
+
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
 
         self.dragging = False
         self.last_mouse_pos = QPoint()
         self.sensibilidade = sense
+    
+    def keyPressEvent(self, event):
+        self.keys_pressed.add(event.key())
+        super().keyPressEvent(event)
+    
+    def keyReleaseEvent(self, event):
+        self.keys_pressed.discard(event.key())
+        super().keyReleaseEvent(event)
 
     def mousePressEvent(self, event):
+        if self.cam is None:
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging = True
             self.last_mouse_pos = event.position().toPoint()
@@ -373,18 +392,14 @@ class OpenGLWidget(QOpenGLWidget):
     def mouseMoveEvent(self, event):
         if not self.dragging:
             return
+        if not self.dragging:
+            return
         pos = event.position().toPoint()
-
         dx = pos.x() - self.last_mouse_pos.x()
         dy = pos.y() - self.last_mouse_pos.y()
-
         self.last_mouse_pos = pos
-
-        #print(dx, dy)  # debug
-
         self.cam.giro(dx * self.sensibilidade,
-                      -dy * self.sensibilidade)
-
+                  -dy * self.sensibilidade)
         self.cam.recalc()
         self.update()
     #contexto open gl(initializeGL,paintGL)
@@ -396,14 +411,37 @@ class OpenGLWidget(QOpenGLWidget):
         #vertex layout(describes to the graphics pipeline how to interpret the raw data stored in a Vertex Buffer Object (VBO) on the GPU)
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
-        self.textura = Material().carregar_textura(BASE_DIR+"\\imgs\\dado-20-lados.png")
+        
+        # Corrigir caminhos dos arquivos
+        texture_path = os.path.join(BASE_DIR, "imgs", "dado-20-lados.png")
+        
+        try:
+            self.textura = Material().carregar_textura(texture_path)
+        except Exception as e:
+            # Criar textura dummy FUNCIONAL se falhar
+            import traceback
+            traceback.print_exc()
+            self.textura = Material()
+            self.textura.textura = glGenTextures(1)
+            glBindTexture(GL_TEXTURE_2D, self.textura.textura)
+            # Criar textura branca 2x2
+            white_data = np.array([[255, 255, 255, 255] * 2] * 2, dtype=np.uint8)
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, white_data)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        
         self.quad = Moving_quad()
         self.cam = Camera()
+        
         #achando arquivos necessarios para o shader
-        vertex_path = os.path.join(BASE_DIR+"\\shader\\", "vertex.txt")
-        fragment_path = os.path.join(BASE_DIR+"\\shader\\", "fragment.txt")
-        #garantiu que ache os arquivos
-        self.shader = Shader(vertex_path,fragment_path)
+        vertex_path = os.path.join(BASE_DIR, "shader", "vertex.txt")
+        fragment_path = os.path.join(BASE_DIR, "shader", "fragment.txt")
+        
+        try:
+            self.shader = Shader(vertex_path,fragment_path)
+        except Exception as e:
+            print(f"ERRO ao compilar shaders: {e}")
+            return
         glActiveTexture(GL_TEXTURE0)
         self.shader.use()
         glBindVertexArray(self.mesh.VAO)
@@ -416,11 +454,11 @@ class OpenGLWidget(QOpenGLWidget):
         self.cam.recalc()
         fov_y = 60.0
         aspect_ratio = 4.0/3.0
-        perto = 0.0001
+        perto = 0.1  # Near plane mais razoável
         longe = 100.0
         proj_mat = Mat4().perspectiva(fov_y,aspect_ratio,perto,longe)
-        #definindo projecao de perspectiva
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, proj_mat.dados.T)
+        #definindo projecao de perspectiva (GL_TRUE = transpor)
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)
         #framerate
         # Verificar matrizes
         self.timer = QTimer(self)
@@ -428,45 +466,35 @@ class OpenGLWidget(QOpenGLWidget):
         self.timer.start(16)  # ~60 FPS (1000ms / 60 ≈ 16ms)
         #outros
         glEnable(GL_DEPTH_TEST)
-        #debug info
-        '''
-        print(f"Mesh criada: VAO={self.mesh.VAO}, indices={self.mesh.index_count}")
-        print(f"Textura: {self.textura.textura}")
-        print(f"Shader program: {self.shader.program}")
-        print(f"Uniforms: tex={self.tex_loc}, proj={self.proj_loc}, transform={self.transform_loc}, view={self.view_loc}")
-        print(f"Camera frente: {self.cam.frente.dados}")
-        print(f"Camera direita: {self.cam.direita.dados}")
-        print(f"Camera cima: {self.cam.cima.dados}")
-        print(f"Projeção:\n{proj_mat.dados}")
-        print(f"Quad pos: {self.quad.pos.dados}")
-        print(f"Camera pos: {self.cam.pos.dados}")
-        '''
     
     def animate(self):
+        if self.cam is None:
+            return
         #movimento de camera
         movimento = Vec3(0,0,0)
+        
         #wasd
-        if kb.is_pressed('w'):
+        if Qt.Key.Key_W in self.keys_pressed:
             movimento.dados[2] -= 1
-        if kb.is_pressed('s'):
+        if Qt.Key.Key_S in self.keys_pressed:
             movimento.dados[2] += 1
-        if kb.is_pressed('a'):
+        if Qt.Key.Key_A in self.keys_pressed:
             movimento.dados[0] -= 1
-        if kb.is_pressed('d'):
+        if Qt.Key.Key_D in self.keys_pressed:
             movimento.dados[0] += 1
         #setas
-        if kb.is_pressed('up'):
+        if Qt.Key.Key_Up in self.keys_pressed:
             movimento.dados[2] -= 1
-        if kb.is_pressed('down'):
+        if Qt.Key.Key_Down in self.keys_pressed:
             movimento.dados[2] += 1
-        if kb.is_pressed('left'):
+        if Qt.Key.Key_Left in self.keys_pressed:
             movimento.dados[0] -= 1
-        if kb.is_pressed('right'):
+        if Qt.Key.Key_Right in self.keys_pressed:
             movimento.dados[0] += 1
         # subir / descer 
-        if kb.is_pressed('space'):
+        if Qt.Key.Key_Space in self.keys_pressed:
             movimento.dados[1] += 1
-        if kb.is_pressed('ctrl'):
+        if Qt.Key.Key_Control in self.keys_pressed:
             movimento.dados[1] -= 1
         # aplica movimento
         if movimento.magnitude() > 0:
@@ -478,23 +506,42 @@ class OpenGLWidget(QOpenGLWidget):
         self.update()  # força o paintGL() a ser chamado novamente
     
     def resizeGL(self, w, h):
+        if self.shader is None:
+            return
         self.shader.use()
         glViewport(0, 0, w, h)
         aspect_ratio = w / h if h else 1.0
-        proj_mat = Mat4().perspectiva(60.0, aspect_ratio, 0.1, 10.0)
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, proj_mat.dados.T)
+        proj_mat = Mat4().perspectiva(60.0, aspect_ratio, 0.1, 100.0)  # Near plane 0.1
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, proj_mat.dados)  # GL_TRUE = transpor
+
 
 
     def paintGL(self):
+        if self.shader is None:
+            return
+        
+        # Debug: mostrar a cada 60 frames
+        if not hasattr(self, '_frame_count'):
+            self._frame_count = 0
+        self._frame_count += 1
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        
         #configurando
         self.shader.use()#usar programa shader
         glUniform1i(self.tex_loc, 0)
         glActiveTexture(GL_TEXTURE0)
         self.textura.use()
-        glUniformMatrix4fv(self.transform_loc, 1, GL_FALSE, self.quad.get_transform().T)
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.cam.view_transform().dados.T)
+        # GL_TRUE = transpor as matrizes de row-major (numpy) para column-major (OpenGL)
+        glUniformMatrix4fv(self.transform_loc, 1, GL_TRUE, self.quad.get_transform())
+        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.cam.view_transform().dados)
+
         self.mesh.draw()
+        
+        # Verificar erros após draw
+        if self._frame_count == 60:
+            err = glGetError()
+            if err != GL_NO_ERROR:
+                print(f"ERRO OpenGL após draw: {err}")
 
     #limpar recursos de gpu
     def cleanup(self):
