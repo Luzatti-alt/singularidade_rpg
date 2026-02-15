@@ -5,7 +5,7 @@ from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QK
 from PySide6.QtWidgets import *#dps so importar os que foram utilizado para optimizar
 import sys 
 from pathlib import Path
-# Adiciona o diretório raiz do projeto ao path
+# Adiciona o diretório raiz do projeto ao path e permite usar partes/modulos de outras pastas do projeto
 root = Path(__file__).parent.parent.parent  # root projeto
 sys.path.insert(0, str(root))
 #com isso achamos o modulo
@@ -65,7 +65,6 @@ app.setStyleSheet(f"""
     }}
 """)
 #region gerenciador de janelas
-#gerenciador de janelas
 class janela_principal(QWidget):
     def __init__(self):
         super().__init__()
@@ -134,8 +133,7 @@ class janela_principal(QWidget):
         else:
             # Se não há histórico, volta para DM
             self.stacked.setCurrentWidget(self.tela_dm)
-#endregion gerenciador de janelas
-#telas
+
 class Salas(QWidget):
     def __init__(self, mestrar,entrar_sala):
         super().__init__()
@@ -169,6 +167,8 @@ class Salas(QWidget):
         entrar_numa_sala.clicked.connect(entrar_sala)
         layout_base.addLayout(menu_topo,1,1)
         self.setLayout(layout_base)
+#endregion gerenciador de janelas
+
 #region Player
 class Visitante(QWidget):
     def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes,ir_token_ficha):
@@ -193,8 +193,8 @@ class Visitante(QWidget):
         meio_tela = QHBoxLayout()
         meio_tela.addLayout(tresD_render)
         meio_tela.addLayout(controle)
-        meio_tela.setStretch(0, 8)  # tresD_render
-        meio_tela.setStretch(1, 2)  # controle
+        meio_tela.setStretch(0, 6)  # tresD_render
+        meio_tela.setStretch(1, 4)  # controle
         #menus
         #topo
         anotacoes = QPushButton("Anotações")
@@ -225,6 +225,8 @@ class Visitante(QWidget):
         controle.addWidget(chat, 1, 1)
         controle.addLayout(interacao_chat, 2, 1)
 
+        char_interaction.addWidget(QLabel("adicionar controle de personagem dps que terminar opengl controle de mapas"))
+
         layout_base.addLayout(menu_topo)
         layout_base.addLayout(meio_tela)
         layout_base.addLayout(char_interaction)
@@ -234,6 +236,7 @@ class Visitante(QWidget):
         self.setLayout(layout_base)
         #botoes que tem atalhos
 #endregion Player
+
 #region dm
 class Controller(QWidget):
     def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas,ir_token_ficha,ir_gerir_pessoas):
