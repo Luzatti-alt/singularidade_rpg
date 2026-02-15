@@ -1,11 +1,20 @@
+#region importacoes
+#UI
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QKeySequence, QPixmap
-from PySide6.QtWidgets import *#deste jeitop facilita a visualização do que sera importado
-from opengl_widget import OpenGLWidget
-import sys
+from PySide6.QtWidgets import *#dps so importar os que foram utilizado para optimizar
+import sys 
+from pathlib import Path
+# Adiciona o diretório raiz do projeto ao path
+root = Path(__file__).parent.parent.parent  # root projeto
+sys.path.insert(0, str(root))
+#com isso achamos o modulo
+from src.ui.opengl.opengl_widget import OpenGLWidget
+#funcionalidades 
 
-#funcionalidades(bot,teclado,etc)
-#from discord_bot.bot import aviso
+#endregion importacoes
+
+# region app
 
 # Configurar OpenGL ANTES de criar QApplication (necessário no PySide6)
 fmt = QSurfaceFormat()
@@ -16,14 +25,47 @@ fmt.setStencilBufferSize(8)
 fmt.setSamples(4)  # Anti-aliasing
 QSurfaceFormat.setDefaultFormat(fmt)
 
+#configurando app
 app = QApplication(sys.argv)
-#paleta de cor
+#paleta de cor base
 cores = {
     "fundo": "#060721",
     "botao": "#080d3f",
+    "houver":"#0a1370",
+    "ativo": "#2636e4",
     "texto": "#ffffff"
 }
-#iniciando/configurando janelas
+#Aplicar paleta
+palette = QPalette()
+palette.setColor(QPalette.ColorRole.Window, QColor(cores["fundo"]))
+palette.setColor(QPalette.ColorRole.ButtonText, QColor(cores["texto"]))
+palette.setColor(QPalette.ColorRole.WindowText, QColor(cores["texto"]))
+palette.setColor(QPalette.ColorRole.Text, QColor(cores["texto"]))
+app.setPalette(palette)
+#stylesheet glonal/base
+app.setStyleSheet(f"""
+                  QPushButton {{background-color: {cores['botao']};}}
+                  QPushButton:hover {{background-color: {cores['houver']};}}
+                  QPushButton:pressed {{background-color: {cores['ativo']};}}
+                  QPushButton:checked {{background-color: {cores['ativo']};}}
+                  QCheckBox {{
+                    color: {cores['texto']};
+                    spacing: 5px;
+                    }}
+                  QCheckBox::indicator {{
+                    width: 18px;
+                    height: 18px;
+                    border: 2px solid {cores['texto']};
+                    border-radius: 3px;
+                    background-color: {cores['botao']};
+                    }}
+                  QCheckBox::indicator:checked {{
+                    background-color: #1a3dff;
+                    border: 2px solid {cores['ativo']};
+    }}
+""")
+#region gerenciador de janelas
+#gerenciador de janelas
 class janela_principal(QWidget):
     def __init__(self):
         super().__init__()
@@ -68,7 +110,6 @@ class janela_principal(QWidget):
             self.historico_navegacao.append(tela_atual)
         self.stacked.setCurrentWidget(widget)
 
-
     def entrar_sala(self):
         self.ir_para(self.visitantes)
     def ir_gerir_pessoas(self):
@@ -93,7 +134,7 @@ class janela_principal(QWidget):
         else:
             # Se não há histórico, volta para DM
             self.stacked.setCurrentWidget(self.tela_dm)
-
+#endregion gerenciador de janelas
 #telas
 class Salas(QWidget):
     def __init__(self, mestrar,entrar_sala):
@@ -128,6 +169,7 @@ class Salas(QWidget):
         entrar_numa_sala.clicked.connect(entrar_sala)
         layout_base.addLayout(menu_topo,1,1)
         self.setLayout(layout_base)
+#region Player
 class Visitante(QWidget):
     def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes,ir_token_ficha):
         super().__init__()
@@ -139,6 +181,7 @@ class Visitante(QWidget):
         self.setAutoFillBackground(True)
         layout_base = QVBoxLayout()
         menu_topo = QHBoxLayout()
+        char_interaction = QHBoxLayout()
         controle = QGridLayout()
         tresD_render = QHBoxLayout()
         open_gl = OpenGLWidget()
@@ -152,20 +195,6 @@ class Visitante(QWidget):
         meio_tela.addLayout(controle)
         meio_tela.setStretch(0, 8)  # tresD_render
         meio_tela.setStretch(1, 2)  # controle
-        #cores
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(cores["fundo"]))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(cores["texto"]))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(cores["texto"]))
-        palette.setColor(QPalette.ColorRole.Text, QColor(cores["texto"]))
-        app.setPalette(palette)
-        #stylesheet glonal aos que nn funcionaram
-        app.setStyleSheet(f"""
-        QPushButton {{background-color: {cores['botao']};}}
-        QPushButton:hover {{background-color: #0a1370;}}
-        QPushButton:pressed {{background-color: #020426;}}
-        QPushButton:checked {{background-color: #1a3dff;}}
-        """)
         #menus
         #topo
         anotacoes = QPushButton("Anotações")
@@ -198,12 +227,13 @@ class Visitante(QWidget):
 
         layout_base.addLayout(menu_topo)
         layout_base.addLayout(meio_tela)
+        layout_base.addLayout(char_interaction)
         layout_base.setStretch(0, 1)
         layout_base.setStretch(1, 8)
         layout_base.setStretch(2, 1)
         self.setLayout(layout_base)
         #botoes que tem atalhos
-
+#endregion Player
 #region dm
 class Controller(QWidget):
     def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas,ir_token_ficha,ir_gerir_pessoas):
@@ -232,20 +262,6 @@ class Controller(QWidget):
         meio_tela.setStretch(0, 8)  # tresD_render
         meio_tela.setStretch(1, 2)  # controle
         user_input_baixo = QHBoxLayout()
-        #cores
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(cores["fundo"]))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(cores["texto"]))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(cores["texto"]))
-        palette.setColor(QPalette.ColorRole.Text, QColor(cores["texto"]))
-        app.setPalette(palette)
-        #stylesheet glonal aos que nn funcionaram
-        app.setStyleSheet(f"""
-        QPushButton {{background-color: {cores['botao']};}}
-        QPushButton:hover {{background-color: #0a1370;}}
-        QPushButton:pressed {{background-color: #020426;}}
-        QPushButton:checked {{background-color: #1a3dff;}}
-        """)
         #menus
         #topo
         alertar_inicio_fim = QPushButton("Iniciar sessão")
@@ -409,16 +425,24 @@ class Token_ficha(QWidget):
         super().__init__()
         self.voltar = voltar
         layout_base = QGridLayout()
-        configs_infos = QGridLayout()
         menu_topo = QHBoxLayout()
         menu_fundo = QHBoxLayout()
+        lista_tokens_ficha = QVBoxLayout()
+        tokens_ficha = QVBoxLayout()
 
         voltar_button = QPushButton("Voltar")
         voltar_button.clicked.connect(voltar)
         menu_topo.addWidget(voltar_button)
+
+
+        lista_tokens_ficha.addWidget(QLabel("lista de token/fichas"))
+        menu_fundo.addLayout(lista_tokens_ficha)
+        tokens_ficha.addWidget(QLabel("token/ficha"))
+        tokens_ficha.addWidget(QPushButton("editar"))
+        menu_fundo.addLayout(tokens_ficha)
+
         layout_base.addLayout(menu_topo,1,1)
-        layout_base.addLayout(configs_infos,2,1)
-        layout_base.addLayout(menu_fundo,3,1)
+        layout_base.addLayout(menu_fundo,2,1)
         self.setLayout(layout_base)
 #endregion tokens/fichas
 #region mapas
@@ -525,6 +549,17 @@ class configs(QWidget):
         voltar_button = QPushButton("Voltar")
         voltar_button.clicked.connect(voltar)
         menu_topo.addWidget(voltar_button)
+        #configuracoes aqui
+        Modo_performance_checkbox = QCheckBox("ativar modo batata")
+        mostrar_id_sala = QCheckBox("mostrar id da sala")
+        mostrar_id_sala.setCheckState(Qt.CheckState.Checked)#por padrão vai vir habilitado
+
+        # evento qnd checado
+        #Modo_performance_ativas.stateChanged.connect(self.report_state)
+        
+        configs_infos.addWidget(Modo_performance_checkbox)
+        configs_infos.addWidget(mostrar_id_sala)
+        #excluir dados do usuario
         apagar_dados = QPushButton("excluir dados salvos")
         apagar_dados.setStyleSheet(f":hover {{background-color: #fc0303;}}")
         menu_fundo.addWidget(apagar_dados)
@@ -533,7 +568,8 @@ class configs(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 #endregion configs
-#region detalhes finais
+#endregion app
+
 #loop do app/janela
 window = janela_principal()
 window.show()
