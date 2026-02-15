@@ -413,7 +413,7 @@ class OpenGLWidget(QOpenGLWidget):
         self.mesh = Mesh().build_color_forma() #chama contructor de mesh pegamos a instancia e fazemos o triangulo
         
         # Corrigir caminhos dos arquivos
-        texture_path = os.path.join(BASE_DIR, "imgs", "dado-20-lados.png")
+        texture_path = os.path.join(BASE_DIR, "imgs_testes", "dado-20-lados.png")
         
         try:
             self.textura = Material().carregar_textura(texture_path)
