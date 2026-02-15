@@ -1,1 +1,0 @@
-#o app tera um chat

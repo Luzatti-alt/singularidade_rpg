@@ -10,6 +10,7 @@ root = Path(__file__).parent.parent.parent  # root projeto
 sys.path.insert(0, str(root))
 #com isso achamos o modulo
 from src.ui.opengl.opengl_widget import OpenGLWidget
+from src.funcionalidades.comm.comm import server,client
 #funcionalidades 
 
 #endregion importacoes
@@ -44,6 +45,7 @@ palette.setColor(QPalette.ColorRole.Text, QColor(cores["texto"]))
 app.setPalette(palette)
 #stylesheet glonal/base
 app.setStyleSheet(f"""
+                  QLineEdit{{color:black;}}
                   QPushButton {{background-color: {cores['botao']};}}
                   QPushButton:hover {{background-color: {cores['houver']};}}
                   QPushButton:pressed {{background-color: {cores['ativo']};}}
@@ -135,6 +137,7 @@ class janela_principal(QWidget):
             self.stacked.setCurrentWidget(self.tela_dm)
 
 class Salas(QWidget):
+    #add logica de conferir se sala existe
     def __init__(self, mestrar,entrar_sala):
         super().__init__()
         self.mestrar = mestrar
@@ -159,6 +162,8 @@ class Salas(QWidget):
         player_img = QPixmap('app/src/ui/imgs/dado-20-lados.png')
         label_player.setPixmap(player_img)
         player.addWidget(label_player)
+        codigo_sala = QLineEdit("codigo da sala")
+        player.addWidget(codigo_sala)
         entrar_numa_sala = QPushButton("entrar em uma sala")
         player.addWidget(entrar_numa_sala)
 
@@ -200,7 +205,8 @@ class Visitante(QWidget):
         anotacoes = QPushButton("Anotações")
         token = QPushButton("Tokens/fichas")
         confs = QPushButton("Configurações")
-        sala_id_text = QLabel("ID sala:")
+        
+        sala_id_text = QLabel(f"ID sala:")
         sair_sala = QPushButton("Sair da sala")
         menu_topo.addWidget(anotacoes)
         menu_topo.addWidget(token)
@@ -242,6 +248,10 @@ class Controller(QWidget):
     def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas,ir_token_ficha,ir_gerir_pessoas):
         super().__init__()
         #configuraççoes iniciais
+        #iniciar server client
+        server.main
+        id_sala = server.port
+        #telas
         self.ir_gerir_pessoas = ir_gerir_pessoas
         self.ir_anotacoes = ir_anotacoes
         self.ir_token_ficha = ir_token_ficha
@@ -249,6 +259,7 @@ class Controller(QWidget):
         self.ir_mapas = ir_mapas
         self.ir_salas = ir_salas
         self.setAutoFillBackground(True)
+        #layout
         layout_base = QVBoxLayout()
         menu_topo = QHBoxLayout()
         controle = QGridLayout()
@@ -276,7 +287,7 @@ class Controller(QWidget):
         token = QPushButton("Tokens/fichas")
         gerenciar_pessoas = QPushButton("Gerenciar pessoas")
         confs = QPushButton("Configurações")
-        sala_id_text = QLabel("ID sala:")
+        sala_id_text = QLabel(f"ID sala: {id_sala}")
         sair_sala = QPushButton("Sair da sala")
         menu_topo.addWidget(alertar_inicio_fim)
         menu_topo.addWidget(anotacoes)
