@@ -1,5 +1,5 @@
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QKeySequence
+from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QKeySequence, QPixmap
 from PySide6.QtWidgets import *#deste jeitop facilita a visualização do que sera importado
 from opengl_widget import OpenGLWidget
 import sys
@@ -26,19 +26,23 @@ cores = {
 #iniciando/configurando janelas
 class janela_principal(QWidget):
     def __init__(self):
-        self.tela_anterior = None
         super().__init__()
+        self.historico_navegacao = []
         self.stacked = QStackedWidget()
-        self.tela_dm = Controller(self.ir_anotacoes,self.ir_configs,self.ir_mapas,self.ir_salas)
-        self.salas = Salas(self.voltar,self.entrar_sala)
-        self.visitantes = Visitante(self.voltar,self.ir_configs,self.ir_salas,self.ir_anotacoes)
+        self.salas = Salas(self.mestrar,self.entrar_sala)
+        self.tela_dm = Controller(self.ir_anotacoes,self.ir_configs,self.ir_mapas,self.ir_salas,self.ir_token_ficha,self.ir_gerir_pessoas)
+        self.visitantes = Visitante(self.voltar,self.ir_configs,self.ir_salas,self.ir_anotacoes,self.ir_token_ficha)
         self.tela_anotacoes = anotacoes(self.voltar)
         self.tela_mapas = Mapas(self.voltar)
         self.tela_configs = configs(self.voltar)
+        self.token_ficha = Token_ficha(self.voltar)
+        self.gerenciar_pessoas = Gerenciar_pessoas(self.voltar)
 
+        self.stacked.addWidget(self.salas)
         self.stacked.addWidget(self.tela_dm)
         self.stacked.addWidget(self.tela_anotacoes)
-        self.stacked.addWidget(self.salas)
+        self.stacked.addWidget(self.token_ficha)
+        self.stacked.addWidget(self.gerenciar_pessoas)
         self.stacked.addWidget(self.visitantes)
         self.stacked.addWidget(self.tela_mapas)
         self.stacked.addWidget(self.tela_configs)
@@ -59,50 +63,77 @@ class janela_principal(QWidget):
         atalho_sair.activated.connect(QApplication.quit)
     #ir para outras telas
     def ir_para(self, widget):
-        self.tela_anterior = self.stacked.currentWidget()
+        tela_atual = self.stacked.currentWidget()
+        if tela_atual != widget:  # Só adiciona se for uma tela diferente
+            self.historico_navegacao.append(tela_atual)
         self.stacked.setCurrentWidget(widget)
+
+
     def entrar_sala(self):
         self.ir_para(self.visitantes)
+    def ir_gerir_pessoas(self):
+        self.ir_para(self.gerenciar_pessoas)
     def ir_salas(self):
         self.ir_para(self.salas)
+    def ir_token_ficha(self):
+        self.ir_para(self.token_ficha)
     def ir_anotacoes(self):
         self.ir_para(self.tela_anotacoes)
     def ir_mapas(self):
         self.ir_para(self.tela_mapas)
     def ir_configs(self):
         self.ir_para(self.tela_configs)
+    def mestrar(self):
+        self.ir_para(self.tela_dm)
     def voltar(self):
-        if self.tela_anterior:
-            self.stacked.setCurrentWidget(self.tela_anterior)
-
-        #trocar para voltar para o widget anterior ao invez de voltar para a tela de dm
+        if self.historico_navegacao:
+            # Volta para a última tela no histórico
+            tela_anterior = self.historico_navegacao.pop()
+            self.stacked.setCurrentWidget(tela_anterior)
+        else:
+            # Se não há histórico, volta para DM
+            self.stacked.setCurrentWidget(self.tela_dm)
 
 #telas
 class Salas(QWidget):
-    def __init__(self, voltar,entrar_sala):
+    def __init__(self, mestrar,entrar_sala):
         super().__init__()
-        self.voltar = voltar
+        self.mestrar = mestrar
         self.entrar_sala = entrar_sala
         layout_base = QGridLayout()
-        configs_infos = QGridLayout()
-        menu_topo = QHBoxLayout()
-        menu_fundo = QHBoxLayout()
+        layout_base.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        mestrar = QPushButton("mestrar")
-        mestrar.clicked.connect(voltar)
-        menu_topo.addWidget(mestrar)
+        menu_topo = QHBoxLayout()
+        menu_topo.setSpacing(50)# em pxx
+        mestre = QVBoxLayout()
+        player = QVBoxLayout()
+        
+        label_mestre = QLabel(self)
+        mestrar_img = QPixmap('app/src/ui/imgs/dado-20-lados.png')
+        label_mestre.setPixmap(mestrar_img)
+        mestre.addWidget(label_mestre)
+        ir_mestrar = QPushButton("mestrar")
+        ir_mestrar.clicked.connect(mestrar)
+        mestre.addWidget(ir_mestrar)
+
+        label_player = QLabel(self) 
+        player_img = QPixmap('app/src/ui/imgs/dado-20-lados.png')
+        label_player.setPixmap(player_img)
+        player.addWidget(label_player)
         entrar_numa_sala = QPushButton("entrar em uma sala")
+        player.addWidget(entrar_numa_sala)
+
+        menu_topo.addLayout(mestre)
+        menu_topo.addLayout(player)
         entrar_numa_sala.clicked.connect(entrar_sala)
-        menu_fundo.addWidget(entrar_numa_sala)
         layout_base.addLayout(menu_topo,1,1)
-        layout_base.addLayout(configs_infos,2,1)
-        layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 class Visitante(QWidget):
-    def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes):
+    def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes,ir_token_ficha):
         super().__init__()
         #configuraççoes iniciais
         self.ir_anotacoes = ir_anotacoes
+        self.ir_token_ficha = ir_token_ficha
         self.ir_configs = ir_configs
         self.ir_salas = ir_salas
         self.setAutoFillBackground(True)
@@ -148,6 +179,7 @@ class Visitante(QWidget):
         menu_topo.addWidget(sala_id_text)
         menu_topo.addWidget(sair_sala)
         sair_sala.clicked.connect(self.ir_salas)
+        token.clicked.connect(self.ir_token_ficha)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
 
@@ -174,10 +206,12 @@ class Visitante(QWidget):
 
 #region dm
 class Controller(QWidget):
-    def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas):
+    def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas,ir_token_ficha,ir_gerir_pessoas):
         super().__init__()
         #configuraççoes iniciais
+        self.ir_gerir_pessoas = ir_gerir_pessoas
         self.ir_anotacoes = ir_anotacoes
+        self.ir_token_ficha = ir_token_ficha
         self.ir_configs = ir_configs
         self.ir_mapas = ir_mapas
         self.ir_salas = ir_salas
@@ -234,6 +268,8 @@ class Controller(QWidget):
         menu_topo.addWidget(sala_id_text)
         menu_topo.addWidget(sair_sala)
         sair_sala.clicked.connect(self.ir_salas)
+        gerenciar_pessoas.clicked.connect(self.ir_gerir_pessoas)
+        token.clicked.connect(self.ir_token_ficha)
         mapas.clicked.connect(self.ir_mapas)
         anotacoes.clicked.connect(self.ir_anotacoes)
         confs.clicked.connect(self.ir_configs)
@@ -333,7 +369,6 @@ class Controller(QWidget):
         self.setLayout(layout_base)
         #botoes que tem atalhos
         self.btn_sessao = alertar_inicio_fim
-
         self.setup_atalhos()
     #atalhos locais
     def setup_atalhos(self):
@@ -368,6 +403,24 @@ class Controller(QWidget):
         u_input = self.input.text()
         print(u_input)
 #endregion dm
+#region tokens/fichas
+class Token_ficha(QWidget):
+    def __init__(self, voltar):
+        super().__init__()
+        self.voltar = voltar
+        layout_base = QGridLayout()
+        configs_infos = QGridLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(configs_infos,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
+#endregion tokens/fichas
 #region mapas
 class Mapas(QWidget):
     def __init__(self, voltar):
@@ -441,6 +494,24 @@ class anotacoes(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 #endregion anotaçoes
+#region gerenciar_sessão
+class Gerenciar_pessoas(QWidget):
+    def __init__(self, voltar):
+        super().__init__()
+        self.voltar = voltar
+        layout_base = QGridLayout()
+        configs_infos = QGridLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(configs_infos,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
+#endregion gerenciar_sessão
 #region configs
 class configs(QWidget):
     def __init__(self, voltar):
