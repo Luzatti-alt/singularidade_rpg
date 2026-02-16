@@ -4,11 +4,18 @@
 import asyncio
 import websockets
 
-clients = set()
+clients = set()#sem duplicatas
+chat = []#chats podem ter duplicatas mas vou criar filtro de span
+
+
 #SE FOR DM/GM GERARA UM SOCKET PARA CRIAR O ID DA SALA E OUTRAS COISA
 class server():
     global client
+    global chat
+    #P/TESTES
     port = 8765
+
+    #Funcionamento do server
     async def echo(websocket):
         async for message in websocket:
             await websocket.send(message)
@@ -19,7 +26,9 @@ class server():
     #mostrar id
     def mostrar_id(port):
         return port
-
+    
+    def conteudo_chat(chat):
+        return chat
     #rodar websocket
     async def main(port):
         #func onde port

@@ -174,7 +174,7 @@ class Salas(QWidget):
         self.setLayout(layout_base)
 #endregion gerenciador de janelas
 
-#region Player
+#region Player_only
 class Visitante(QWidget):
     def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes,ir_token_ficha):
         super().__init__()
@@ -241,9 +241,9 @@ class Visitante(QWidget):
         layout_base.setStretch(2, 1)
         self.setLayout(layout_base)
         #botoes que tem atalhos
-#endregion Player
+#endregion Player_only
 
-#region dm
+#region dm_only
 class Controller(QWidget):
     def __init__(self, ir_anotacoes,ir_configs,ir_mapas,ir_salas,ir_token_ficha,ir_gerir_pessoas):
         super().__init__()
@@ -352,7 +352,7 @@ class Controller(QWidget):
         add_npc = QPushButton("adicionar npc")
 
         interacao_chat = QHBoxLayout()
-        chat = QLabel("add chat futuramente")
+        chat = QLabel("add chat futuramente \n outra msg")
         chat.setStyleSheet(f"background-color:{cores['botao']};")
         chat_dialog = QLineEdit()
         chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
@@ -432,33 +432,6 @@ class Controller(QWidget):
     def bot_msg(self):
         u_input = self.input.text()
         print(u_input)
-#endregion dm
-#region tokens/fichas
-class Token_ficha(QWidget):
-    def __init__(self, voltar):
-        super().__init__()
-        self.voltar = voltar
-        layout_base = QGridLayout()
-        menu_topo = QHBoxLayout()
-        menu_fundo = QHBoxLayout()
-        lista_tokens_ficha = QVBoxLayout()
-        tokens_ficha = QVBoxLayout()
-
-        voltar_button = QPushButton("Voltar")
-        voltar_button.clicked.connect(voltar)
-        menu_topo.addWidget(voltar_button)
-
-
-        lista_tokens_ficha.addWidget(QLabel("lista de token/fichas"))
-        menu_fundo.addLayout(lista_tokens_ficha)
-        tokens_ficha.addWidget(QLabel("token/ficha"))
-        tokens_ficha.addWidget(QPushButton("editar"))
-        menu_fundo.addLayout(tokens_ficha)
-
-        layout_base.addLayout(menu_topo,1,1)
-        layout_base.addLayout(menu_fundo,2,1)
-        self.setLayout(layout_base)
-#endregion tokens/fichas
 #region mapas
 class Mapas(QWidget):
     def __init__(self, voltar):
@@ -496,6 +469,53 @@ class Mapas(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 #endregion mapas
+
+#region gerenciar_sessão
+class Gerenciar_pessoas(QWidget):
+    def __init__(self, voltar):
+        super().__init__()
+        self.voltar = voltar
+        layout_base = QGridLayout()
+        configs_infos = QGridLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(configs_infos,2,1)
+        layout_base.addLayout(menu_fundo,3,1)
+        self.setLayout(layout_base)
+#endregion gerenciar_sessão
+
+#endregion dm_only
+#region tokens/fichas
+class Token_ficha(QWidget):
+    def __init__(self, voltar):
+        super().__init__()
+        self.voltar = voltar
+        layout_base = QGridLayout()
+        menu_topo = QHBoxLayout()
+        menu_fundo = QHBoxLayout()
+        lista_tokens_ficha = QVBoxLayout()
+        tokens_ficha = QVBoxLayout()
+
+        voltar_button = QPushButton("Voltar")
+        voltar_button.clicked.connect(voltar)
+        menu_topo.addWidget(voltar_button)
+
+        lista_tokens_ficha.addWidget(QLabel("lista de token/fichas"))
+        menu_fundo.addLayout(lista_tokens_ficha)
+        tokens_ficha.addWidget(QLabel("token/ficha"))
+        tokens_ficha.addWidget(QPushButton("editar"))
+        menu_fundo.addLayout(tokens_ficha)
+
+        layout_base.addLayout(menu_topo,1,1)
+        layout_base.addLayout(menu_fundo,2,1)
+        self.setLayout(layout_base)
+#endregion tokens/fichas
+
 #region anotaçoes
 class anotacoes(QWidget):
     def __init__(self, voltar):
@@ -532,24 +552,7 @@ class anotacoes(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 #endregion anotaçoes
-#region gerenciar_sessão
-class Gerenciar_pessoas(QWidget):
-    def __init__(self, voltar):
-        super().__init__()
-        self.voltar = voltar
-        layout_base = QGridLayout()
-        configs_infos = QGridLayout()
-        menu_topo = QHBoxLayout()
-        menu_fundo = QHBoxLayout()
 
-        voltar_button = QPushButton("Voltar")
-        voltar_button.clicked.connect(voltar)
-        menu_topo.addWidget(voltar_button)
-        layout_base.addLayout(menu_topo,1,1)
-        layout_base.addLayout(configs_infos,2,1)
-        layout_base.addLayout(menu_fundo,3,1)
-        self.setLayout(layout_base)
-#endregion gerenciar_sessão
 #region configs
 class configs(QWidget):
     def __init__(self, voltar):
@@ -582,6 +585,7 @@ class configs(QWidget):
         layout_base.addLayout(menu_fundo,3,1)
         self.setLayout(layout_base)
 #endregion configs
+
 #endregion app
 
 #loop do app/janela
