@@ -1,16 +1,18 @@
 #region importacoes
 #UI
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QPalette, QIcon, QSurfaceFormat, QShortcut, QKeySequence, QPixmap
 from PySide6.QtWidgets import *#dps so importar os que foram utilizado para optimizar
 import sys 
+import json
 from pathlib import Path
 # Adiciona o diretório raiz do projeto ao path e permite usar partes/modulos de outras pastas do projeto
 root = Path(__file__).parent.parent.parent  # root projeto
 sys.path.insert(0, str(root))
 #com isso achamos o modulo
 from src.ui.opengl.opengl_widget import OpenGLWidget
-from src.funcionalidades.comm.comm import server,client
+from src.funcionalidades.comm.server import SocketServer
+from src.funcionalidades.comm.client import SocketClient
 #funcionalidades 
 
 #endregion importacoes
@@ -111,12 +113,13 @@ class janela_principal(QWidget):
             self.historico_navegacao.append(tela_atual)
         self.stacked.setCurrentWidget(widget)
 
-    def entrar_sala(self):
-        self.ir_para(self.visitantes)
     def ir_gerir_pessoas(self):
         self.ir_para(self.gerenciar_pessoas)
     def ir_salas(self):
         self.ir_para(self.salas)
+    def entrar_sala(self, ip, codigo):
+        self.visitantes.conectar(host=ip, room_id=codigo)
+        self.ir_para(self.visitantes)
     def ir_token_ficha(self):
         self.ir_para(self.token_ficha)
     def ir_anotacoes(self):
@@ -126,6 +129,8 @@ class janela_principal(QWidget):
     def ir_configs(self):
         self.ir_para(self.tela_configs)
     def mestrar(self):
+        self.tela_dm.iniciar_servidor()  # sobe o server
+        self.tela_dm.conectar()          # conecta como cliente
         self.ir_para(self.tela_dm)
     def voltar(self):
         if self.historico_navegacao:
@@ -135,6 +140,22 @@ class janela_principal(QWidget):
         else:
             # Se não há histórico, volta para DM
             self.stacked.setCurrentWidget(self.tela_dm)
+
+        #patch QThread: Destroyed while thread '' is still running
+    def closeEvent(self, event):
+        # Para o socket do GM
+        if hasattr(self.tela_dm, 'socket') and self.tela_dm.socket:
+            self.tela_dm.socket.stop()
+            self.tela_dm.socket.wait()
+        # Para o servidor
+        if hasattr(self.tela_dm, 'servidor'):
+            self.tela_dm.servidor.stop()
+            self.tela_dm.servidor.wait()
+        # Para o socket do jogador
+        if hasattr(self.visitantes, 'socket') and self.visitantes.socket:
+            self.visitantes.socket.stop()
+            self.visitantes.socket.wait()
+        event.accept()
 
 class Salas(QWidget):
     #add logica de conferir se sala existe
@@ -162,22 +183,31 @@ class Salas(QWidget):
         player_img = QPixmap('app/src/ui/imgs/dado-20-lados.png')
         label_player.setPixmap(player_img)
         player.addWidget(label_player)
-        codigo_sala = QLineEdit("codigo da sala")
-        player.addWidget(codigo_sala)
+        self.ip_input = QLineEdit("IP do mestre")
+        self.codigo_sala = QLineEdit("código da sala")
+        player.addWidget(label_player)
+        player.addWidget(self.ip_input)
+        player.addWidget(self.codigo_sala)
         entrar_numa_sala = QPushButton("entrar em uma sala")
         player.addWidget(entrar_numa_sala)
+        entrar_numa_sala.clicked.connect(self._entrar)
 
         menu_topo.addLayout(mestre)
         menu_topo.addLayout(player)
-        entrar_numa_sala.clicked.connect(entrar_sala)
         layout_base.addLayout(menu_topo,1,1)
         self.setLayout(layout_base)
+
+    def _entrar(self):
+        ip = self.ip_input.text().strip()
+        codigo = self.codigo_sala.text().strip()
+        self.entrar_sala(ip, codigo)
 #endregion gerenciador de janelas
 
 #region Player_only
 class Visitante(QWidget):
     def __init__(self,voltar,ir_configs,ir_salas,ir_anotacoes,ir_token_ficha):
         super().__init__()
+        self.socket = None
         #configuraççoes iniciais
         self.ir_anotacoes = ir_anotacoes
         self.ir_token_ficha = ir_token_ficha
@@ -220,15 +250,19 @@ class Visitante(QWidget):
 
         #controle geral
         interacao_chat = QHBoxLayout()
-        chat = QLabel("add chat futuramente")
-        chat.setStyleSheet(f"background-color:{cores['botao']};")
-        chat_dialog = QLineEdit()
-        chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
+        self.chat_label = QTextEdit()
+        self.chat_label.setReadOnly(True)
+        self.chat_label.setStyleSheet(f"background-color:{cores['botao']};")
+
+        interacao_chat = QHBoxLayout()
+        self.chat_dialog = QLineEdit()
+        self.chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
         chat_dialog_mandar = QPushButton("mandar msg")
-        interacao_chat.addWidget(chat_dialog)
+        chat_dialog_mandar.clicked.connect(self.enviar_msg)
+        interacao_chat.addWidget(self.chat_dialog)
         interacao_chat.addWidget(chat_dialog_mandar)
 
-        controle.addWidget(chat, 1, 1)
+        controle.addWidget(self.chat_label, 1, 1)   # linha 1: só o chat
         controle.addLayout(interacao_chat, 2, 1)
 
         char_interaction.addWidget(QLabel("adicionar controle de personagem dps que terminar opengl controle de mapas"))
@@ -240,6 +274,34 @@ class Visitante(QWidget):
         layout_base.setStretch(1, 8)
         layout_base.setStretch(2, 1)
         self.setLayout(layout_base)
+    def conectar(self, host="127.0.0.1", port=8765, room_id=""):
+        try:
+            self.room_id = room_id
+            self.socket = SocketClient(host, port)
+            self.socket.message_received.connect(self.processar_msg)
+            self.socket.start()            
+            QTimer.singleShot(300, self.entrar_sala)
+        except Exception as e:
+            print(f"Erro ao conectar: {e}")
+
+    def entrar_sala(self):
+        self.socket.send_json({
+            "action": "JOIN_ROOM",
+            "room_id": self.room_id,
+            "user": "Player"
+            })
+
+
+    def enviar_msg(self):
+        self.socket.send_json({
+            "action": "CHAT",
+            "user": "Player1",
+            "message": self.chat_dialog.text()
+        })
+        self.chat_dialog.clear()
+    def processar_msg(self, data):
+        if data.get("action") == "CHAT":
+            self.chat_label.append(f'{data["user"]}: {data["message"]}')
         #botoes que tem atalhos
 #endregion Player_only
 
@@ -249,8 +311,6 @@ class Controller(QWidget):
         super().__init__()
         #configuraççoes iniciais
         #iniciar server client
-        server.main
-        id_sala = server.port
         #telas
         self.ir_gerir_pessoas = ir_gerir_pessoas
         self.ir_anotacoes = ir_anotacoes
@@ -287,7 +347,7 @@ class Controller(QWidget):
         token = QPushButton("Tokens/fichas")
         gerenciar_pessoas = QPushButton("Gerenciar pessoas")
         confs = QPushButton("Configurações")
-        sala_id_text = QLabel(f"ID sala: {id_sala}")
+        self.sala_id_text = QLabel("ID sala: ---")
         sair_sala = QPushButton("Sair da sala")
         menu_topo.addWidget(alertar_inicio_fim)
         menu_topo.addWidget(anotacoes)
@@ -295,7 +355,7 @@ class Controller(QWidget):
         menu_topo.addWidget(mapas)
         menu_topo.addWidget(gerenciar_pessoas)
         menu_topo.addWidget(confs)
-        menu_topo.addWidget(sala_id_text)
+        menu_topo.addWidget(self.sala_id_text)
         menu_topo.addWidget(sair_sala)
         sair_sala.clicked.connect(self.ir_salas)
         gerenciar_pessoas.clicked.connect(self.ir_gerir_pessoas)
@@ -352,12 +412,15 @@ class Controller(QWidget):
         add_npc = QPushButton("adicionar npc")
 
         interacao_chat = QHBoxLayout()
-        chat = QLabel("add chat futuramente \n outra msg")
-        chat.setStyleSheet(f"background-color:{cores['botao']};")
-        chat_dialog = QLineEdit()
-        chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
+        self.chat_label = QTextEdit()
+        self.chat_label.setReadOnly(True)
+        self.chat_label.setStyleSheet(f"background-color:{cores['botao']};")
+        self.chat_dialog = QLineEdit()
+        self.chat_dialog.setStyleSheet(f"background-color:{cores['botao']};")
         chat_dialog_mandar = QPushButton("mandar msg")
-        interacao_chat.addWidget(chat_dialog)
+        chat_dialog_mandar.clicked.connect(self.enviar_msg)
+        interacao_chat.addWidget(self.chat_dialog)
+        controle.addWidget(self.chat_label, 13, 1)
         interacao_chat.addWidget(chat_dialog_mandar)
 
         #adicionando no layout
@@ -374,7 +437,7 @@ class Controller(QWidget):
         controle.addWidget(add_inimigo, 10, 1)
         controle.addWidget(lista_npcs, 11, 1)
         controle.addWidget(add_npc, 12, 1)
-        controle.addWidget(chat, 13, 1)
+        controle.addWidget(self.chat_label, 13, 1)
         controle.addLayout(interacao_chat, 14, 1)
         
         #baixo
@@ -414,6 +477,37 @@ class Controller(QWidget):
         btn.clicked.emit(btn.isChecked())
 
     #funções botoes
+    def iniciar_servidor(self):
+        self.servidor = SocketServer()
+        self.servidor.cliente_conectado.connect(lambda a: print(f"Player conectou: {a}"))
+        self.servidor.start()
+    def conectar(self, host="127.0.0.1", port=8765):
+        try:
+            self.socket = SocketClient(host, port)
+            self.socket.message_received.connect(self.processar_msg)
+            self.socket.start()
+            # cria sala após conectar
+            
+            import random, string
+            self.room_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            QTimer.singleShot(300, self.criar_sala)
+        except Exception as e:
+            print(f"Erro ao conectar: {e}")
+    def criar_sala(self):
+        self.socket.send_json({"action": "CREATE_ROOM", "room_id": self.room_id})
+        self.socket.send_json({"action": "CREATE_ROOM", "room_id": self.room_id})
+        self.sala_id_text.setText(f"ID sala: {self.room_id}")
+
+    def enviar_msg(self):
+        self.socket.send_json({
+            "action": "CHAT",
+            "user": "Player1",
+            "message": self.chat_dialog.text()
+        })
+        self.chat_dialog.clear()
+    def processar_msg(self, data):
+        if data.get("action") == "CHAT":
+            self.chat_label.append(f'{data["user"]}: {data["message"]}')
     #alerta de sessão ao jogadores
     def sessao(self, checked):
         if checked:
